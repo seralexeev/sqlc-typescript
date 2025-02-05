@@ -1,0 +1,5 @@
+{
+  "include": ["**/*.ts"],
+  "schema": "schema.sql",
+  "output": "types.ts"
+}

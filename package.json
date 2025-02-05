@@ -1,0 +1,17 @@
+{
+  "name": "sqlc-typescript",
+  "type": "module",
+  "scripts": {
+    "start": "node --no-warnings src/index.ts",
+    "build": "tsc"
+  },
+  "packageManager": "yarn@4.6.0",
+  "dependencies": {
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "prettier": "3.4.2",
+    "typescript": "^5.7.3"
+  }
+}
