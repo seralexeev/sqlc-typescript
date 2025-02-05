@@ -28,7 +28,7 @@ type TableElement = {
     comment: string;
 };
 
-type Column = {
+export type Column = {
     name: string;
     not_null: boolean;
     is_array: boolean;
