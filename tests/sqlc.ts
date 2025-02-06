@@ -1,0 +1,272 @@
+type Json = JsonPrimitive | Json[] | { [key: string]: Json };
+type JsonPrimitive = string | number | boolean | null;
+
+type GetPrefix<K extends string> = K extends `${infer T}.${string}` ? T : K;
+type RemovePrefix<K extends string, P extends string> = K extends `${P}.${infer R}` ? R : never;
+
+type Nest<T> = Simplify<{
+    [P in GetPrefix<keyof T & string>]: P extends keyof T
+        ? T[P]
+        : Nest<{ [K in keyof T as RemovePrefix<K & string, P>]: K & string extends `${P}.${string}` ? T[K] : never }>;
+}>;
+
+type SimplifyArray<T> = T extends Array<infer U> ? Array<Simplify<U>> : T;
+type SimplifyTuple<T> = T extends [...infer Elements] ? { [K in keyof Elements]: Simplify<Elements[K]> } : T;
+type SimplifyObject<T> = T extends object ? { [K in keyof T]: Simplify<T[K]> } : T;
+
+export type Simplify<T> = T extends Function
+    ? T
+    : T extends readonly any[]
+      ? SimplifyTuple<T>
+      : T extends Array<any>
+        ? SimplifyArray<T>
+        : T extends object
+          ? SimplifyObject<T> & {}
+          : T;
+
+type QueryClient = {
+    query: (
+        query: string,
+        params: unknown[],
+    ) => Promise<{
+        rows: Array<Record<string, unknown>>;
+    }>;
+};
+
+type Override<TSpec, TRow> = Partial<{
+    [K in keyof TSpec]: K extends keyof TRow ? TSpec[K] : never;
+}>;
+
+type ApplyOverride<TSpec, TRow> = {
+    [K in keyof TRow]: K extends keyof TSpec ? TSpec[K] : TRow[K];
+};
+
+type ExecFn<TRow, TParam> = [TParam] extends [never]
+    ? <TSpec extends Override<TSpec, TRow>>(client: QueryClient) => Promise<Array<Simplify<ApplyOverride<TSpec, TRow>>>>
+    : <TSpec extends Override<TSpec, TRow>>(
+          client: QueryClient,
+          params: TParam & Record<string, unknown>,
+      ) => Promise<Array<Simplify<ApplyOverride<TSpec, TRow>>>>;
+
+type ExecNestFn<TRow, TParam> = TParam extends never
+    ? <TSpec extends Override<TSpec, TRow>>(client: QueryClient) => Promise<Array<Simplify<Nest<ApplyOverride<TSpec, TRow>>>>>
+    : <TSpec extends Override<TSpec, TRow>>(
+          client: QueryClient,
+          params: TParam & Record<string, unknown>,
+      ) => Promise<Array<Simplify<Nest<ApplyOverride<TSpec, TRow>>>>>;
+
+class Query<TRow, TParam> {
+    public query;
+    public params;
+
+    public constructor(query: string, params: string[]) {
+        this.query = query;
+        this.params = params;
+    }
+
+    public exec = (async (client, params) => {
+        const { rows } = await client.query(
+            this.query,
+            this.params.map((param) => params[param]),
+        );
+
+        return rows;
+    }) as ExecFn<TRow, TParam>;
+
+    public exec_nest = (async (client, params) => {
+        const { rows } = await client.query(
+            this.query,
+            this.params.map((param) => params[param]),
+        );
+
+        return rows.map(nest);
+    }) as ExecNestFn<TRow, TParam>;
+}
+
+const nest = <T extends Record<string, unknown>>(obj: T) => {
+    const result: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(obj)) {
+        const parts = key.split('.');
+        let current = result;
+
+        for (const part of parts.slice(0, -1)) {
+            if (!(part in current)) {
+                current[part] = {};
+            }
+
+            current = current[part] as Record<string, unknown>;
+        }
+
+        const lastPart = parts[parts.length - 1];
+        if (lastPart != null) {
+            current[lastPart] = value;
+        }
+    }
+
+    return result as Nest<T>;
+};
+
+type Queries = typeof queries;
+
+export type mpaa_rating = 'G' | 'PG' | 'PG-13' | 'R' | 'NC-17';
+
+const queries = {
+    [`
+    SELECT
+        customer_id,
+        first_name,
+        last_name,
+        email,
+        address_id,
+        store_id,
+        activebool,
+        create_date,
+        last_update
+    FROM
+        customer
+    WHERE
+        customer_id = @customer_id;
+`]: new Query<{ "customer_id": number; "first_name": string; "last_name": string; "email": string | null; "address_id": number; "store_id": number; "activebool": boolean; "create_date": unknown; "last_update": Date | null }, { "customer_id": number }>(`SELECT
+        customer_id,
+        first_name,
+        last_name,
+        email,
+        address_id,
+        store_id,
+        activebool,
+        create_date,
+        last_update
+    FROM
+        customer
+    WHERE
+        customer_id = $1`, ['customer_id']),
+    [`
+    SELECT
+        film_id,
+        title,
+        description,
+        release_year,
+        rental_rate
+    FROM
+        film
+    WHERE
+        title LIKE '%' || @film_title || '%';
+`]: new Query<{ "film_id": number; "title": string; "description": string | null; "release_year": unknown | null; "rental_rate": number }, { "film_title": string | null }>(`SELECT
+        film_id,
+        title,
+        description,
+        release_year,
+        rental_rate
+    FROM
+        film
+    WHERE
+        title LIKE '%' || $1 || '%'`, ['film_title']),
+    [`
+    SELECT
+        r.rental_id,
+        r.rental_date,
+        f.title AS film_title,
+        r.return_date
+    FROM
+        rental AS r
+    JOIN
+        inventory AS i ON r.inventory_id = i.inventory_id
+    JOIN
+        film AS f ON i.film_id = f.film_id
+    WHERE
+        r.customer_id = @customer_id
+    ORDER BY
+        r.rental_date DESC;
+`]: new Query<{ "rental_id": number; "rental_date": Date; "film_title": string; "return_date": Date | null }, { "customer_id": number }>(`SELECT
+        r.rental_id,
+        r.rental_date,
+        f.title AS film_title,
+        r.return_date
+    FROM
+        rental AS r
+    JOIN
+        inventory AS i ON r.inventory_id = i.inventory_id
+    JOIN
+        film AS f ON i.film_id = f.film_id
+    WHERE
+        r.customer_id = $1
+    ORDER BY
+        r.rental_date DESC`, ['customer_id']),
+    [`
+    SELECT
+        customer_id,
+        COUNT(*) AS rental_count
+    FROM
+        rental
+    GROUP BY
+        customer_id
+    HAVING
+        customer_id = @customer_id
+`]: new Query<{ "customer_id": number; "rental_count": unknown }, { "customer_id": number }>(`SELECT
+        customer_id,
+        COUNT(*) AS rental_count
+    FROM
+        rental
+    GROUP BY
+        customer_id
+    HAVING
+        customer_id = $1`, ['customer_id']),
+    [`
+    WITH CategoryRevenue AS (
+        SELECT
+            c.name AS category_name,
+            SUM(p.amount) AS total_revenue
+        FROM
+            category AS c
+        JOIN
+            film_category AS fc ON c.category_id = fc.category_id
+        JOIN
+            film AS f ON fc.film_id = f.film_id
+        JOIN
+            inventory AS i ON f.film_id = i.film_id
+        JOIN
+            rental AS r ON i.inventory_id = r.inventory_id
+        JOIN
+            payment AS p ON r.rental_id = p.rental_id
+        GROUP BY
+            c.name
+    )
+    SELECT
+        category_name,
+        total_revenue
+    FROM
+        CategoryRevenue
+    ORDER BY
+        total_revenue DESC
+    LIMIT 5
+`]: new Query<{ "category_name": string; "total_revenue": unknown }, never>(`WITH CategoryRevenue AS (
+        SELECT
+            c.name AS category_name,
+            SUM(p.amount) AS total_revenue
+        FROM
+            category AS c
+        JOIN
+            film_category AS fc ON c.category_id = fc.category_id
+        JOIN
+            film AS f ON fc.film_id = f.film_id
+        JOIN
+            inventory AS i ON f.film_id = i.film_id
+        JOIN
+            rental AS r ON i.inventory_id = r.inventory_id
+        JOIN
+            payment AS p ON r.rental_id = p.rental_id
+        GROUP BY
+            c.name
+    )
+    SELECT
+        category_name,
+        total_revenue
+    FROM
+        CategoryRevenue
+    ORDER BY
+        total_revenue DESC
+    LIMIT 5`, []),
+};
+
+export const sqlc = <T extends keyof Queries>(query: T) => queries[query];

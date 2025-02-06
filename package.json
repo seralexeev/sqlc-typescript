@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "start": "node --no-warnings src/index.ts",
+    "test": "node --no-warnings src/index.ts generate -c tests/sqlc.json",
     "build": "tsc"
   },
   "bin": "bin/cli",

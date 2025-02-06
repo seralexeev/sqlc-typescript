@@ -3,8 +3,8 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import util from 'util';
-import type { Column, SqlcResult } from './types.ts';
 import { BINARY_NAME } from './platform.ts';
+import type { Column, SqlcResult } from './types.ts';
 
 const execFileAsync = util.promisify(execFile);
 
@@ -205,13 +205,14 @@ export class Generator {
     }
 
     private getType = (column: Column) => {
-        if (this.schemaTypes.has([column.type.schema, column.type.name].join('.'))) {
+        const parts = [column.type.schema, column.type.name.split('.')]
+            .flat()
+            .filter((x) => x !== '' && x !== 'public' && x !== 'pg_catalog');
+
+        const type = parts.join('.');
+        if (this.schemaTypes.has(type)) {
             return [column.type.schema, column.type.name].join('.');
         }
-
-        const type = [column.type.schema, column.type.name]
-            .filter((x) => x !== '' && x !== 'public' && x !== 'pg_catalog')
-            .join('.');
 
         return this.config.types[type] || this.DEFAULT_TYPES[type] || 'unknown';
     };
