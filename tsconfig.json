@@ -2,8 +2,6 @@
   "compilerOptions": {
     "rootDir": "${configDir}/src",
     "outDir": "${configDir}/dist",
-    "tsBuildInfoFile": "${configDir}/dist/.tsbuildinfo",
-    "incremental": true,
     "lib": ["ESNext"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
@@ -28,12 +26,11 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
 
     "declaration": true,
-    "composite": true,
     "sourceMap": true,
-    "declarationMap": true,
-    "emitDeclarationOnly": true
+    "declarationMap": true
   },
   "include": ["${configDir}/src"]
 }

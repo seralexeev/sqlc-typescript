@@ -18,8 +18,19 @@ type Schema = {
     comment: string;
     name: string;
     tables: TableElement[];
-    enums: unknown[];
-    composite_types: unknown[];
+    enums: Enum[];
+    composite_types: CompositeType[];
+};
+
+type CompositeType = {
+    name: string;
+    comment: string;
+};
+
+type Enum = {
+    name: string;
+    vals: string[];
+    comment: string;
 };
 
 type TableElement = {

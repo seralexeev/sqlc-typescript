@@ -1,10 +1,12 @@
 {
   "name": "sqlc-typescript",
   "type": "module",
+  "main": "dist/index.js",
   "scripts": {
     "start": "node --no-warnings src/index.ts",
     "build": "tsc"
   },
+  "bin": "bin/cli",
   "packageManager": "yarn@4.6.0",
   "dependencies": {
     "commander": "^13.1.0"

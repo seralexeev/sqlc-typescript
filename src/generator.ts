@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import util from 'util';
 import type { Column, SqlcResult } from './types.ts';
+import { BINARY_NAME } from './platform.ts';
 
 const execFileAsync = util.promisify(execFile);
 
@@ -17,6 +18,7 @@ type Config = {
 
 export class Generator {
     public config;
+    public schemaTypes = new Set<string>();
 
     public constructor(config: Config) {
         this.config = {
@@ -28,10 +30,14 @@ export class Generator {
     public async generate() {
         const tmp = await this.prepare();
         const files = await Array.fromAsync(this.readFiles());
+        if (files.length === 0) {
+            return;
+        }
+
         const queries = new Map<string, string>();
         const queryFile = await fs.open(path.join(tmp, 'queries.sql'), 'w+');
 
-        for (const sql of files.flat()) {
+        for (const sql of files) {
             const hash = crypto.createHash('md5').update(sql.trim()).digest('hex').substring(0, 8);
             const name = `query_${hash}`;
 
@@ -44,7 +50,7 @@ export class Generator {
             queries.set(name, sql);
         }
 
-        await execFileAsync('/Users/sergeyalekseev/projects/sqlc-typescript/bin/sqlc', ['generate', '-f', 'sqlc.json'], {
+        await execFileAsync(path.join(import.meta.dirname, '..', 'bin', 'sqlc', BINARY_NAME), ['generate', '-f', 'sqlc.json'], {
             cwd: tmp,
         });
 
@@ -52,27 +58,23 @@ export class Generator {
         const result = this.generateTypes(queries, output);
 
         await fs.writeFile(path.join(this.config.root, this.config.output), result);
-        await fs.rm(tmp, { recursive: true });
+        // await fs.rm(tmp, { recursive: true });
     }
 
     private async *readFiles() {
         for await (const file of fs.glob(this.config.include, { cwd: this.config.root })) {
             const content = await fs.readFile(path.join(this.config.root, file), 'utf8');
-            const queries: string[] = [];
             const regex = /\/\*\s*sql\s*\*\/\s*`([^`]+)`/g;
 
             let match;
             while ((match = regex.exec(content)) != null) {
-                console.log(match);
                 const sql = match[1];
                 if (sql == null) {
                     continue;
                 }
 
-                queries.push(sql);
+                yield sql;
             }
-
-            yield queries;
         }
     }
 
@@ -111,32 +113,45 @@ export class Generator {
     }
 
     private generateTypes(queries: Map<string, string>, output: SqlcResult) {
-        const lines = [
-            `class Query<TRow, TParam> {
-    public query;
-    public params;
+        const lines = [template, ''];
 
-    public constructor(query: string, params: string[]) {
-        this.query = query;
-        this.params = params;
-    }
+        for (const schema of output.catalog.schemas) {
+            if (schema.composite_types.length === 0 && schema.enums.length === 0) {
+                continue;
+            }
 
-    public exec = async (
-        client: { query: (query: string, params: unknown[]) => Promise<{ rows: unknown[] }> },
-        params: TParam,
-    ) => {
-        const { rows } = await client.query(
-            this.query,
-            this.params.map((param) => params[param]),
-        );
+            if (schema.name !== 'public') {
+                lines.push(`namespace ${schema.name} {`);
+            }
 
-        return rows as TRow[];
-    };
-}
-type Queries = typeof queries;`,
-            '',
-            'const queries = {',
-        ];
+            const padding = schema.name === 'public' ? '' : '    ';
+
+            for (const e of schema.enums) {
+                if (e.comment !== '') {
+                    lines.push(padding + `/** ${e.comment} */`);
+                }
+
+                lines.push(padding + `export type ${e.name} = ${e.vals.map((v) => `'${v}'`).join(' | ')};`);
+                this.schemaTypes.add([schema.name, e.name].join('.'));
+            }
+
+            for (const ct of schema.composite_types) {
+                if (ct.comment !== '') {
+                    lines.push(padding + `/** ${ct.comment} */`);
+                }
+
+                lines.push(padding + `export type ${ct.name} = unknown;`);
+                this.schemaTypes.add([schema.name, ct.name].join('.'));
+            }
+
+            if (schema.name !== 'public') {
+                lines.push('}');
+            }
+
+            lines.push('');
+        }
+
+        lines.push('const queries = {');
 
         for (const query of output.queries) {
             const original = queries.get(query.name);
@@ -144,7 +159,7 @@ type Queries = typeof queries;`,
 
             if (query.columns.length > 0) {
                 line += `{ `;
-                line += query.columns.map((column) => `${column.name}: ${this.objectTypeToTypeScript(column)}`).join('; ');
+                line += query.columns.map((column) => `"${column.name}": ${this.objectTypeToTypeScript(column)}`).join('; ');
                 line += ` }, `;
             } else {
                 line += `never, `;
@@ -153,7 +168,7 @@ type Queries = typeof queries;`,
             if (query.params.length > 0) {
                 line += `{ `;
                 line += query.params
-                    .map((param) => `${param.column.name}: ${this.objectTypeToTypeScript(param.column)}`)
+                    .map((param) => `"${param.column.name}": ${this.objectTypeToTypeScript(param.column)}`)
                     .join('; ');
                 line += ` }`;
             } else {
@@ -190,6 +205,10 @@ type Queries = typeof queries;`,
     }
 
     private getType = (column: Column) => {
+        if (this.schemaTypes.has([column.type.schema, column.type.name].join('.'))) {
+            return [column.type.schema, column.type.name].join('.');
+        }
+
         const type = [column.type.schema, column.type.name]
             .filter((x) => x !== '' && x !== 'public' && x !== 'pg_catalog')
             .join('.');
@@ -200,7 +219,130 @@ type Queries = typeof queries;`,
     private DEFAULT_TYPES: Record<string, string> = {
         uuid: 'string',
         text: 'string',
+        citext: 'string',
         timestampt: 'Date',
         timestamptz: 'Date',
+        json: 'Json',
+        jsonb: 'Json',
+        int2: 'number',
+        int4: 'number',
+        int8: 'number',
+        float4: 'number',
+        float8: 'number',
+        numeric: 'number',
+        bool: 'boolean',
     };
 }
+
+const template = `
+type Json = JsonPrimitive | Json[] | { [key: string]: Json };
+type JsonPrimitive = string | number | boolean | null;
+
+type GetPrefix<K extends string> = K extends \`\${infer T}.\${string}\` ? T : K;
+type RemovePrefix<K extends string, P extends string> = K extends \`\${P}.\${infer R}\` ? R : never;
+
+type Nest<T> = Simplify<{
+    [P in GetPrefix<keyof T & string>]: P extends keyof T
+        ? T[P]
+        : Nest<{ [K in keyof T as RemovePrefix<K & string, P>]: K & string extends \`\${P}.\${string}\` ? T[K] : never }>;
+}>;
+
+type SimplifyArray<T> = T extends Array<infer U> ? Array<Simplify<U>> : T;
+type SimplifyTuple<T> = T extends [...infer Elements] ? { [K in keyof Elements]: Simplify<Elements[K]> } : T;
+type SimplifyObject<T> = T extends object ? { [K in keyof T]: Simplify<T[K]> } : T;
+
+export type Simplify<T> = T extends Function
+    ? T
+    : T extends readonly any[]
+      ? SimplifyTuple<T>
+      : T extends Array<any>
+        ? SimplifyArray<T>
+        : T extends object
+          ? SimplifyObject<T> & {}
+          : T;
+
+type QueryClient = {
+    query: (
+        query: string,
+        params: unknown[],
+    ) => Promise<{
+        rows: Array<Record<string, unknown>>;
+    }>;
+};
+
+type Override<TSpec, TRow> = Partial<{
+    [K in keyof TSpec]: K extends keyof TRow ? TSpec[K] : never;
+}>;
+
+type ApplyOverride<TSpec, TRow> = {
+    [K in keyof TRow]: K extends keyof TSpec ? TSpec[K] : TRow[K];
+};
+
+type ExecFn<TRow, TParam> = [TParam] extends [never]
+    ? <TSpec extends Override<TSpec, TRow>>(client: QueryClient) => Promise<Array<Simplify<ApplyOverride<TSpec, TRow>>>>
+    : <TSpec extends Override<TSpec, TRow>>(
+          client: QueryClient,
+          params: TParam & Record<string, unknown>,
+      ) => Promise<Array<Simplify<ApplyOverride<TSpec, TRow>>>>;
+
+type ExecNestFn<TRow, TParam> = TParam extends never
+    ? <TSpec extends Override<TSpec, TRow>>(client: QueryClient) => Promise<Array<Simplify<Nest<ApplyOverride<TSpec, TRow>>>>>
+    : <TSpec extends Override<TSpec, TRow>>(
+          client: QueryClient,
+          params: TParam & Record<string, unknown>,
+      ) => Promise<Array<Simplify<Nest<ApplyOverride<TSpec, TRow>>>>>;
+
+class Query<TRow, TParam> {
+    public query;
+    public params;
+
+    public constructor(query: string, params: string[]) {
+        this.query = query;
+        this.params = params;
+    }
+
+    public exec = (async (client, params) => {
+        const { rows } = await client.query(
+            this.query,
+            this.params.map((param) => params[param]),
+        );
+
+        return rows;
+    }) as ExecFn<TRow, TParam>;
+
+    public exec_nest = (async (client, params) => {
+        const { rows } = await client.query(
+            this.query,
+            this.params.map((param) => params[param]),
+        );
+
+        return rows.map(nest);
+    }) as ExecNestFn<TRow, TParam>;
+}
+
+const nest = <T extends Record<string, unknown>>(obj: T) => {
+    const result: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(obj)) {
+        const parts = key.split('.');
+        let current = result;
+
+        for (const part of parts.slice(0, -1)) {
+            if (!(part in current)) {
+                current[part] = {};
+            }
+
+            current = current[part] as Record<string, unknown>;
+        }
+
+        const lastPart = parts[parts.length - 1];
+        if (lastPart != null) {
+            current[lastPart] = value;
+        }
+    }
+
+    return result as Nest<T>;
+};
+
+type Queries = typeof queries;
+`.trim();
