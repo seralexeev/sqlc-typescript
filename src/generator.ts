@@ -11,27 +11,24 @@ const execFileAsync = util.promisify(execFile);
 type Config = {
     root: string;
     schema: string;
-    include: string | string[];
+    include: string;
     types: Record<string, string>;
     output: string;
 };
 
 export class Generator {
     public config;
-    public schemaTypes = new Set<string>();
+    public schema_types = new Set<string>();
 
     public constructor(config: Config) {
-        this.config = {
-            ...config,
-            types: config.types ?? {},
-        };
+        this.config = { ...config, types: config.types ?? {} };
     }
 
     public async generate() {
         const tmp = await this.prepare();
         const files = await Array.fromAsync(this.readFiles());
         if (files.length === 0) {
-            return;
+            return { queries: 0 };
         }
 
         const queries = new Map<string, string>();
@@ -51,6 +48,7 @@ export class Generator {
         }
 
         let file = '';
+        let throw_error: unknown | null = null;
         try {
             await execFileAsync(
                 path.join(import.meta.dirname, '..', 'bin', 'sqlc', BINARY_NAME),
@@ -65,17 +63,23 @@ export class Generator {
                 const isQueryError = error.stderr.startsWith('# package \nqueries.sql:');
                 if (isQueryError) {
                     const message = error.stderr.replace(/^# package \nqueries\.sql:\d+:\d+:\s*/, '').trim();
-                    console.error(message);
+                    throw_error = new Error(message);
                 }
 
                 file = render({ content: 'const queries = {};' });
             } else {
-                throw error;
+                throw_error = error;
             }
         }
 
         await fs.writeFile(path.join(this.config.root, this.config.output), file);
-        // await fs.rm(tmp, { recursive: true });
+        await fs.rm(tmp, { recursive: true });
+
+        if (throw_error != null) {
+            throw throw_error;
+        }
+
+        return { queries: queries.size };
     }
 
     private async *readFiles() {
@@ -149,7 +153,7 @@ export class Generator {
                 }
 
                 lines.push(padding + `export type ${e.name} = ${e.vals.map((v) => `'${v}'`).join(' | ')};`);
-                this.schemaTypes.add([schema.name, e.name].join('.'));
+                this.schema_types.add([schema.name, e.name].join('.'));
             }
 
             for (const ct of schema.composite_types) {
@@ -158,7 +162,7 @@ export class Generator {
                 }
 
                 lines.push(padding + `export type ${ct.name} = unknown;`);
-                this.schemaTypes.add([schema.name, ct.name].join('.'));
+                this.schema_types.add([schema.name, ct.name].join('.'));
             }
 
             if (schema.name !== 'public') {
@@ -226,7 +230,7 @@ export class Generator {
             .filter((x) => x !== '' && x !== 'public' && x !== 'pg_catalog');
 
         const type = parts.join('.');
-        if (this.schemaTypes.has(type)) {
+        if (this.schema_types.has(type)) {
             return [column.type.schema, column.type.name].join('.');
         }
 

@@ -2,15 +2,16 @@
   "name": "sqlc-typescript",
   "version": "0.0.2",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/cli.js",
+  "bin": "bin/cli",
   "scripts": {
-    "start": "node --no-warnings src/index.ts",
-    "test": "node --no-warnings src/index.ts generate -c tests/sqlc.json",
+    "start": "node --no-warnings src/cli.ts",
+    "example": "node --no-warnings src/cli.ts generate -c tests/sqlc.json",
     "build": "tsc"
   },
-  "bin": "bin/cli",
   "packageManager": "yarn@4.6.0",
   "dependencies": {
+    "chokidar": "^4.0.3",
     "commander": "^13.1.0"
   },
   "devDependencies": {

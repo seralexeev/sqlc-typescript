@@ -1,5 +1,5 @@
 {
-  "include": ["queries/**/*.ts"],
+  "include": "queries/**/*.ts",
   "schema": "schema.sql",
   "output": "sqlc.ts"
 }

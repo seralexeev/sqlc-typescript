@@ -6,16 +6,8 @@
       "request": "launch",
       "name": "💫 Run generator",
       "skipFiles": ["<node_internals>/**"],
-      "program": "${workspaceFolder}/src/index.ts",
+      "program": "${workspaceFolder}/src/cli.ts",
       "args": ["--no-warnings ", "generate", "-c", "tests/sqlc.json"]
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "🧪 Run tests",
-      "skipFiles": ["<node_internals>/**"],
-      "program": "${workspaceFolder}/src/nestify.spec.ts",
-      "args": ["--test"]
     }
   ]
 }

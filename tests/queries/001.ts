@@ -18,7 +18,7 @@ sqlc(/*sql*/ `
     FROM
         customer
     WHERE
-        customer_id = @customer_id;
+        customer_id = @customer_id
 `).exec(client, {
     customer_id: 1,
 });

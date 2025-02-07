@@ -63,7 +63,7 @@ const queries = {
     FROM
         customer
     WHERE
-        customer_id = @customer_id;
+        customer_id = @customer_id
 `]: new Query<{ "customer_id": number; "first_name": string; "last_name": string; "email": string | null; "address_id": number; "store_id": number; "activebool": boolean; "create_date": Date; "last_update": Date | null }, { "customer_id": number }>(`SELECT
         customer_id,
         first_name,
