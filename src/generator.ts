@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import util from 'util';
 import { BINARY_NAME } from './platform.ts';
-import type { Column, SqlcResult } from './types.ts';
+import { DEFAULT_TYPES, type Column, type SqlcResult } from './types.ts';
 
 const execFileAsync = util.promisify(execFile);
 
@@ -50,14 +50,31 @@ export class Generator {
             queries.set(name, sql);
         }
 
-        await execFileAsync(path.join(import.meta.dirname, '..', 'bin', 'sqlc', BINARY_NAME), ['generate', '-f', 'sqlc.json'], {
-            cwd: tmp,
-        });
+        let file = '';
+        try {
+            await execFileAsync(
+                path.join(import.meta.dirname, '..', 'bin', 'sqlc', BINARY_NAME),
+                ['generate', '-f', 'sqlc.json'],
+                { cwd: tmp },
+            );
 
-        const output = await fs.readFile(path.join(tmp, 'generated', 'codegen_request.json'), 'utf8').then(JSON.parse);
-        const result = this.generateTypes(queries, output);
+            const output = await fs.readFile(path.join(tmp, 'generated', 'codegen_request.json'), 'utf8').then(JSON.parse);
+            file = render({ content: this.generateTypes(queries, output) });
+        } catch (error) {
+            if (error instanceof Error && 'stderr' in error && typeof error.stderr === 'string') {
+                const isQueryError = error.stderr.startsWith('# package \nqueries.sql:');
+                if (isQueryError) {
+                    const message = error.stderr.replace(/^# package \nqueries\.sql:\d+:\d+:\s*/, '').trim();
+                    console.error(message);
+                }
 
-        await fs.writeFile(path.join(this.config.root, this.config.output), result);
+                file = render({ content: 'const queries = {};' });
+            } else {
+                throw error;
+            }
+        }
+
+        await fs.writeFile(path.join(this.config.root, this.config.output), file);
         // await fs.rm(tmp, { recursive: true });
     }
 
@@ -113,7 +130,7 @@ export class Generator {
     }
 
     private generateTypes(queries: Map<string, string>, output: SqlcResult) {
-        const lines = [template, ''];
+        const lines = [];
 
         for (const schema of output.catalog.schemas) {
             if (schema.composite_types.length === 0 && schema.enums.length === 0) {
@@ -185,7 +202,6 @@ export class Generator {
 
         lines.push('};');
         lines.push('');
-        lines.push('export const sqlc = <T extends keyof Queries>(query: T) => queries[query];');
 
         return lines.join('\n');
     }
@@ -214,53 +230,14 @@ export class Generator {
             return [column.type.schema, column.type.name].join('.');
         }
 
-        return this.config.types[type] || this.DEFAULT_TYPES[type] || 'unknown';
-    };
-
-    private DEFAULT_TYPES: Record<string, string> = {
-        uuid: 'string',
-        text: 'string',
-        citext: 'string',
-        timestampt: 'Date',
-        timestamptz: 'Date',
-        json: 'Json',
-        jsonb: 'Json',
-        int2: 'number',
-        int4: 'number',
-        int8: 'number',
-        float4: 'number',
-        float8: 'number',
-        numeric: 'number',
-        bool: 'boolean',
+        return this.config.types[type] || DEFAULT_TYPES[type] || 'unknown';
     };
 }
 
-const template = `
+const render = ({ content }: { content: string }) =>
+    `
 type Json = JsonPrimitive | Json[] | { [key: string]: Json };
 type JsonPrimitive = string | number | boolean | null;
-
-type GetPrefix<K extends string> = K extends \`\${infer T}.\${string}\` ? T : K;
-type RemovePrefix<K extends string, P extends string> = K extends \`\${P}.\${infer R}\` ? R : never;
-
-type Nest<T> = Simplify<{
-    [P in GetPrefix<keyof T & string>]: P extends keyof T
-        ? T[P]
-        : Nest<{ [K in keyof T as RemovePrefix<K & string, P>]: K & string extends \`\${P}.\${string}\` ? T[K] : never }>;
-}>;
-
-type SimplifyArray<T> = T extends Array<infer U> ? Array<Simplify<U>> : T;
-type SimplifyTuple<T> = T extends [...infer Elements] ? { [K in keyof Elements]: Simplify<Elements[K]> } : T;
-type SimplifyObject<T> = T extends object ? { [K in keyof T]: Simplify<T[K]> } : T;
-
-export type Simplify<T> = T extends Function
-    ? T
-    : T extends readonly any[]
-      ? SimplifyTuple<T>
-      : T extends Array<any>
-        ? SimplifyArray<T>
-        : T extends object
-          ? SimplifyObject<T> & {}
-          : T;
 
 type QueryClient = {
     query: (
@@ -280,18 +257,11 @@ type ApplyOverride<TSpec, TRow> = {
 };
 
 type ExecFn<TRow, TParam> = [TParam] extends [never]
-    ? <TSpec extends Override<TSpec, TRow>>(client: QueryClient) => Promise<Array<Simplify<ApplyOverride<TSpec, TRow>>>>
+    ? <TSpec extends Override<TSpec, TRow>>(client: QueryClient) => Promise<Array<ApplyOverride<TSpec, TRow>>>
     : <TSpec extends Override<TSpec, TRow>>(
           client: QueryClient,
           params: TParam & Record<string, unknown>,
-      ) => Promise<Array<Simplify<ApplyOverride<TSpec, TRow>>>>;
-
-type ExecNestFn<TRow, TParam> = TParam extends never
-    ? <TSpec extends Override<TSpec, TRow>>(client: QueryClient) => Promise<Array<Simplify<Nest<ApplyOverride<TSpec, TRow>>>>>
-    : <TSpec extends Override<TSpec, TRow>>(
-          client: QueryClient,
-          params: TParam & Record<string, unknown>,
-      ) => Promise<Array<Simplify<Nest<ApplyOverride<TSpec, TRow>>>>>;
+      ) => Promise<Array<ApplyOverride<TSpec, TRow>>>;
 
 class Query<TRow, TParam> {
     public query;
@@ -310,40 +280,11 @@ class Query<TRow, TParam> {
 
         return rows;
     }) as ExecFn<TRow, TParam>;
-
-    public exec_nest = (async (client, params) => {
-        const { rows } = await client.query(
-            this.query,
-            this.params.map((param) => params[param]),
-        );
-
-        return rows.map(nest);
-    }) as ExecNestFn<TRow, TParam>;
 }
 
-const nest = <T extends Record<string, unknown>>(obj: T) => {
-    const result: Record<string, unknown> = {};
-
-    for (const [key, value] of Object.entries(obj)) {
-        const parts = key.split('.');
-        let current = result;
-
-        for (const part of parts.slice(0, -1)) {
-            if (!(part in current)) {
-                current[part] = {};
-            }
-
-            current = current[part] as Record<string, unknown>;
-        }
-
-        const lastPart = parts[parts.length - 1];
-        if (lastPart != null) {
-            current[lastPart] = value;
-        }
-    }
-
-    return result as Nest<T>;
-};
-
 type Queries = typeof queries;
+
+${content}
+
+export const sqlc = <T extends keyof Queries>(query: T) => queries[query];
 `.trim();

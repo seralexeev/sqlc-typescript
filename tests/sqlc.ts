@@ -1,29 +1,6 @@
 type Json = JsonPrimitive | Json[] | { [key: string]: Json };
 type JsonPrimitive = string | number | boolean | null;
 
-type GetPrefix<K extends string> = K extends `${infer T}.${string}` ? T : K;
-type RemovePrefix<K extends string, P extends string> = K extends `${P}.${infer R}` ? R : never;
-
-type Nest<T> = Simplify<{
-    [P in GetPrefix<keyof T & string>]: P extends keyof T
-        ? T[P]
-        : Nest<{ [K in keyof T as RemovePrefix<K & string, P>]: K & string extends `${P}.${string}` ? T[K] : never }>;
-}>;
-
-type SimplifyArray<T> = T extends Array<infer U> ? Array<Simplify<U>> : T;
-type SimplifyTuple<T> = T extends [...infer Elements] ? { [K in keyof Elements]: Simplify<Elements[K]> } : T;
-type SimplifyObject<T> = T extends object ? { [K in keyof T]: Simplify<T[K]> } : T;
-
-export type Simplify<T> = T extends Function
-    ? T
-    : T extends readonly any[]
-      ? SimplifyTuple<T>
-      : T extends Array<any>
-        ? SimplifyArray<T>
-        : T extends object
-          ? SimplifyObject<T> & {}
-          : T;
-
 type QueryClient = {
     query: (
         query: string,
@@ -42,18 +19,11 @@ type ApplyOverride<TSpec, TRow> = {
 };
 
 type ExecFn<TRow, TParam> = [TParam] extends [never]
-    ? <TSpec extends Override<TSpec, TRow>>(client: QueryClient) => Promise<Array<Simplify<ApplyOverride<TSpec, TRow>>>>
+    ? <TSpec extends Override<TSpec, TRow>>(client: QueryClient) => Promise<Array<ApplyOverride<TSpec, TRow>>>
     : <TSpec extends Override<TSpec, TRow>>(
           client: QueryClient,
           params: TParam & Record<string, unknown>,
-      ) => Promise<Array<Simplify<ApplyOverride<TSpec, TRow>>>>;
-
-type ExecNestFn<TRow, TParam> = TParam extends never
-    ? <TSpec extends Override<TSpec, TRow>>(client: QueryClient) => Promise<Array<Simplify<Nest<ApplyOverride<TSpec, TRow>>>>>
-    : <TSpec extends Override<TSpec, TRow>>(
-          client: QueryClient,
-          params: TParam & Record<string, unknown>,
-      ) => Promise<Array<Simplify<Nest<ApplyOverride<TSpec, TRow>>>>>;
+      ) => Promise<Array<ApplyOverride<TSpec, TRow>>>;
 
 class Query<TRow, TParam> {
     public query;
@@ -72,40 +42,7 @@ class Query<TRow, TParam> {
 
         return rows;
     }) as ExecFn<TRow, TParam>;
-
-    public exec_nest = (async (client, params) => {
-        const { rows } = await client.query(
-            this.query,
-            this.params.map((param) => params[param]),
-        );
-
-        return rows.map(nest);
-    }) as ExecNestFn<TRow, TParam>;
 }
-
-const nest = <T extends Record<string, unknown>>(obj: T) => {
-    const result: Record<string, unknown> = {};
-
-    for (const [key, value] of Object.entries(obj)) {
-        const parts = key.split('.');
-        let current = result;
-
-        for (const part of parts.slice(0, -1)) {
-            if (!(part in current)) {
-                current[part] = {};
-            }
-
-            current = current[part] as Record<string, unknown>;
-        }
-
-        const lastPart = parts[parts.length - 1];
-        if (lastPart != null) {
-            current[lastPart] = value;
-        }
-    }
-
-    return result as Nest<T>;
-};
 
 type Queries = typeof queries;
 
@@ -127,7 +64,7 @@ const queries = {
         customer
     WHERE
         customer_id = @customer_id;
-`]: new Query<{ "customer_id": number; "first_name": string; "last_name": string; "email": string | null; "address_id": number; "store_id": number; "activebool": boolean; "create_date": unknown; "last_update": Date | null }, { "customer_id": number }>(`SELECT
+`]: new Query<{ "customer_id": number; "first_name": string; "last_name": string; "email": string | null; "address_id": number; "store_id": number; "activebool": boolean; "create_date": Date; "last_update": Date | null }, { "customer_id": number }>(`SELECT
         customer_id,
         first_name,
         last_name,
@@ -203,7 +140,7 @@ const queries = {
         customer_id
     HAVING
         customer_id = @customer_id
-`]: new Query<{ "customer_id": number; "rental_count": unknown }, { "customer_id": number }>(`SELECT
+`]: new Query<{ "customer_id": number; "rental_count": number }, { "customer_id": number }>(`SELECT
         customer_id,
         COUNT(*) AS rental_count
     FROM
@@ -240,7 +177,7 @@ const queries = {
     ORDER BY
         total_revenue DESC
     LIMIT 5
-`]: new Query<{ "category_name": string; "total_revenue": unknown }, never>(`WITH CategoryRevenue AS (
+`]: new Query<{ "category_name": string; "total_revenue": number }, never>(`WITH CategoryRevenue AS (
         SELECT
             c.name AS category_name,
             SUM(p.amount) AS total_revenue
@@ -268,5 +205,6 @@ const queries = {
         total_revenue DESC
     LIMIT 5`, []),
 };
+
 
 export const sqlc = <T extends keyof Queries>(query: T) => queries[query];

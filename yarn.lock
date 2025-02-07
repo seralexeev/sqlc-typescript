@@ -38,6 +38,8 @@ __metadata:
     commander: "npm:^13.1.0"
     prettier: "npm:3.4.2"
     typescript: "npm:^5.7.3"
+  bin:
+    sqlc-typescript: bin/cli
   languageName: unknown
   linkType: soft
 
