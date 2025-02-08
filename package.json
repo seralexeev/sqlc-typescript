@@ -3,9 +3,7 @@
   "version": "0.0.11",
   "type": "module",
   "main": "dist/cli.js",
-  "bin": {
-    "sqlc-typescript": "bin/cli"
-  },
+  "bin": "bin/cli",
   "files": [
     "dist",
     "bin"
