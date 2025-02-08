@@ -1,4 +1,4 @@
-import { sqlc } from '../sqlc';
+import { sqlc } from './sqlc';
 
 const client = {
     query: (query: string, params: unknown[]) => Promise.resolve({ rows: [] }),
@@ -6,7 +6,6 @@ const client = {
 
 sqlc(/*sql*/ `
     SELECT
-        customer_id,
         first_name,
         last_name,
         email,

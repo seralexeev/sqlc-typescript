@@ -1,7 +1,7 @@
 {
-  "include": "queries/**/*.ts",
+  "include": "src/**/*.ts",
+  "output": "src/sqlc.ts",
   "schema": "schema.sql",
-  "output": "sqlc.ts",
   "columns": {
     "customer.customer_id": "UUID"
   },

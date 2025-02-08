@@ -130,17 +130,7 @@ export const exec_sqlc = async ({ tmp_dir, root }: Pick<Config, 'tmp_dir' | 'roo
 export const prepare_tmp_dir = async ({ root, schema, tmp_dir }: Pick<Config, 'root' | 'schema' | 'tmp_dir'>) => {
     const full_tmp_dir = path.join(root, tmp_dir);
 
-    const exists = await fs
-        .access(full_tmp_dir)
-        .then(() => true)
-        .catch((error) => {
-            if (error.code === 'ENOENT') {
-                return false;
-            }
-
-            throw error;
-        });
-
+    const exists = await path_exists(full_tmp_dir);
     if (exists) {
         await fs.rm(full_tmp_dir, { recursive: true });
     }
@@ -207,3 +197,16 @@ function render_query(sql: string) {
 
     return { name, content };
 }
+
+export const path_exists = (full_path: string) => {
+    return fs
+        .access(full_path)
+        .then(() => true)
+        .catch((error) => {
+            if (error.code === 'ENOENT') {
+                return false;
+            }
+
+            throw error;
+        });
+};

@@ -23,7 +23,25 @@ A super lightweight TypeScript types generator that respects your laziness and l
 
 Zero runtime dependencies, just types. This is just a super thin wrapper around [sqlc](https://sqlc.dev/) and a file generator - all the real magic is in sqlc. It just makes it more convenient to use in TypeScript projects.
 
-## Demo 🚀
+## TLDR
+
+- `pg_dump --schema-only postgres://user:password@localhost:5432/database > schema.sql` to dump your schema
+- Run `npx sqlc-typescript watch` (`src/**/*.ts` is default glob and `schema.sql` is default schema file)
+- Write SQL queries in your TypeScript files using the `/*sql*/` comment and `sqlc` function e.g.
+
+    ```typescript
+    const result = await sqlc(/*sql*/ `
+          SELECT customer_id, first_name, last_name
+          FROM customer 
+          WHERE customer_id = @customer_id
+      `).exec(client, {
+        customer_id: 1,
+    });
+    ```
+
+- Import the generated `sqlc` function and get perfect types 🔥
+
+## 🚀 Demo
 
 <img alt="image" src="https://github.com/user-attachments/assets/0556e61c-72ab-465e-86b7-3013e1b82c6f" />
 
@@ -33,11 +51,11 @@ Zero runtime dependencies, just types. This is just a super thin wrapper around 
   https://github.com/user-attachments/assets/dba59632-6c4c-48fe-80f0-da1514e2da1a
 </details>
 
-## Why? 🤔
+## 🤔 Why?
 
 If you're like me - you just want to write SQL, ship features and not deal with heavy abstractions or spend hours reading documentation (even if it's really good). That's exactly why this exists.
 
-### The Problem
+### 🤯 The Problem
 
 - ORMs are complex and make you learn their quirks
 - SQL-like query builders still make you learn their syntax and requires rewriting existing queries to their format
@@ -45,7 +63,7 @@ If you're like me - you just want to write SQL, ship features and not deal with 
 - Maintaining function names for every query is tedious
 - Other tools require database connections for type inference (which isn't always accurate)
 
-### The Solution 🎯
+### 🎯 The Solution
 
 Write SQL directly in your TypeScript files, get perfect types, and ship faster. That's it.
 
@@ -67,7 +85,7 @@ const result = await sqlc(/*sql*/ `
 // result: { customer_id: number, first_name: string | null, last_name: string }[]
 ```
 
-## Installation 🛠️
+## 🛠️ Installation
 
 ```bash
 # Using npm
@@ -80,7 +98,7 @@ yarn add sqlc-typescript
 pnpm add sqlc-typescript
 ```
 
-## Configuration 📝
+## 📝 Configuration
 
 Create a `sqlc.json` in your project root:
 
@@ -132,21 +150,22 @@ npx sqlc-typescript generate -c sqlc.json
 npx sqlc-typescript watch -c sqlc.json
 ```
 
-## How It Works Under The Hood 🔧
+## 🔧 How It Works Under The Hood
 
 1. **File Scanning**: The tool scans your TypeScript files for SQL queries marked with `/*sql*/`
 2. **Type Generation**: Uses [sqlc](https://github.com/sqlc-dev/sqlc) under the hood to analyze your SQL and generate types
 3. **Zero Runtime Overhead**: All the magic happens at build time - no runtime dependencies!
 
-### Why Tagged Templates Can't Be Used 🏷️
+### 🏷️ Why Tagged Templates Can't Be Used
 
 Unfortunately, we can't use tagged template literals like `` sql`SELECT * FROM users` `` for proper syntax highlighting. TypeScript template literals [can't be generic](https://github.com/microsoft/TypeScript/issues/33304), so we can use the `/*sql*/` comment approach instead. Your IDE or SQL plugin will still provide syntax highlighting!
 
-### Comparison with Other Tools 🔍
+### 🔍 Comparison with Other Tools
 
 - [pgTyped](https://github.com/adelsz/pgtyped): Requires separate SQL files and function imports. It uses PostgreSQL wire protocol for type inference which requires a database connection and can't handle nullability well.
 - [Prisma TypedSQL](https://www.prisma.io/docs/orm/prisma-client/using-raw-sql/typedsql): SQL files are separate and require function imports and it's Prisma 🫠.
 - [SafeQL](https://github.com/ts-safeql/safeql): Great tool but requires ESLint and database connection for type inference.
+- [Drizzle](https://orm.drizzle.team/): SQL-like a great query builder but it's not just SQL. I don't want to learn another syntax even if it's very close to SQL. I can't copy-past my queries from psql back and forth.
 
 The key difference: We use sqlc's SQL parser instead of PostgreSQL wire protocol for type inference, which means:
 

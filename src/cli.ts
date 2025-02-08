@@ -2,7 +2,7 @@ import { watch } from 'chokidar';
 import { Command } from 'commander';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { generate } from './generator.ts';
+import { generate, path_exists } from './generator.ts';
 import type { Config } from './types.ts';
 
 const program = new Command();
@@ -14,11 +14,7 @@ program
     .requiredOption('-c, --config <path>', 'Config file', 'sqlc.json')
     .action(async (options) => {
         const config_path = path.resolve(options.config);
-        const root = path.dirname(config_path);
-        const config = await fs
-            .readFile(config_path, 'utf8')
-            .then(JSON.parse)
-            .then((config) => validate_config(config, root));
+        const { config } = await load_config(config_path);
 
         await generate(config);
     });
@@ -28,12 +24,7 @@ program
     .requiredOption('-c, --config <path>', 'Config file', 'sqlc.json')
     .action(async (options) => {
         const config_path = path.resolve(options.config);
-        const root = path.dirname(config_path);
-        const config = await fs
-            .readFile(config_path, 'utf8')
-            .then(JSON.parse)
-            .then((config) => validate_config(config, root));
-
+        const { config, root } = await load_config(config_path);
         const watch_root = path.resolve(root, glob_root(config.include));
 
         const watcher = watch(watch_root, {
@@ -58,6 +49,17 @@ program
 
         console.log(`🟣 Watching directory "${watch_root}"`);
     });
+
+const load_config = async (config_path: string) => {
+    const root = path.dirname(config_path);
+    const exists = await path_exists(config_path);
+    const raw_config = exists ? await fs.readFile(config_path, 'utf8').then(JSON.parse) : {};
+
+    return {
+        config: validate_config(raw_config, root),
+        root,
+    };
+};
 
 const validate_config = (config: unknown, root: string): Config => {
     if (typeof config !== 'object' || config == null) {

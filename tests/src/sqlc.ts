@@ -54,7 +54,6 @@ type Queries = typeof queries;
 const queries = {
     [`
     SELECT
-        customer_id,
         first_name,
         last_name,
         email,
@@ -69,7 +68,6 @@ const queries = {
         customer_id = @customer_id
 `]: new Query<
         {
-            customer_id: UUID;
             first_name: string;
             last_name: string;
             email: string | null;
@@ -82,7 +80,6 @@ const queries = {
         { customer_id: UUID }
     >(
         `SELECT
-        customer_id,
         first_name,
         last_name,
         email,
