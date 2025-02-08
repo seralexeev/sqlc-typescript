@@ -23,7 +23,7 @@ A super lightweight TypeScript types generator that respects your laziness and l
 
 Zero runtime dependencies, just types. This is just a super thin wrapper around [sqlc](https://sqlc.dev/) and a file generator - all the real magic is in sqlc. It just makes it more convenient to use in TypeScript projects.
 
-## TLDR
+## 🏃 TLDR
 
 - `pg_dump --schema-only postgres://user:password@localhost:5432/database > schema.sql` to dump your schema
 - Run `npx sqlc-typescript watch` (`src/**/*.ts` is default glob and `schema.sql` is default schema file)
@@ -114,7 +114,7 @@ Create a `sqlc.json` in your project root:
 }
 ```
 
-## Usage 💻
+## 💻 Usage
 
 1. Write your SQL queries in TypeScript files using the `/*sql*/` tag:
 
@@ -174,9 +174,12 @@ The key difference: We use sqlc's SQL parser instead of PostgreSQL wire protocol
 - No database connection needed
 - Just need a schema dump (`pg_dump --schema-only`)
 
-## SQL Formatting 💅
+## 💅 SQL Formatting
 
-You can use Prettier with SQL plugins to format your queries inside the template literals. The generator preserves formatting and comments.
+You can use Prettier with SQL plugins to format your queries inside the template literals.
+
+- https://github.com/un-ts/prettier
+- https://github.com/Sec-ant/prettier-plugin-embed
 
 ```typescript
 // This will be properly formatted
@@ -192,18 +195,18 @@ sqlc(/*sql*/ `
 `).exec(client);
 ```
 
-## Roadmap 🛣️
+## 🛣️ Roadmap
 
 - Support for all sqlc features and database support beyond PostgreSQL
 - Automatic result unflattening using column aliases
 
-## Limitations ⚠️
+## ⚠️ Limitations
 
 - PostgreSQL only (for now)
 - Queries must be statically analyzable (no dynamic SQL) which is good and bad at the same time
 - All queries must use the `/*sql*/` tag until TypeScript supports generic template literals
 
-## Credits 🙏
+## 🙏 Credits
 
 Big thanks to:
 
