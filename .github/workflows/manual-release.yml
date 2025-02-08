@@ -53,10 +53,14 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Get version
+        id: version
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+
       - name: 📝 Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v$(node -p "require('./package.json').version")
+          tag_name: v${{ env.VERSION }}
           generate_release_notes: true
           files: |
             dist/*
