@@ -1,3 +1,15 @@
+export type Config = {
+    root: string;
+    schema: string;
+    include: string;
+    output: string;
+    tmp_dir: string;
+    clear_tmp: boolean;
+    types: Record<string, string>;
+    columns: Record<string, string>;
+    imports: string[];
+};
+
 export type SqlcResult = {
     settings: Settings;
     catalog: CatalogClass;
@@ -95,90 +107,4 @@ type Codegen = {
     env: unknown[];
     process: unknown;
     wasm: unknown;
-};
-
-export const DEFAULT_TYPES: Record<string, string> = {
-    // Text types
-    text: 'string',
-    varchar: 'string',
-    char: 'string',
-    citext: 'string',
-    name: 'string',
-
-    // Numeric types
-    int2: 'number',
-    int4: 'number',
-    int8: 'number',
-    smallint: 'number',
-    integer: 'number',
-    bigint: 'number',
-    decimal: 'number',
-    numeric: 'number',
-    real: 'number',
-    float4: 'number',
-    float8: 'number',
-    double: 'number',
-    money: 'number',
-
-    // Boolean type
-    bool: 'boolean',
-    boolean: 'boolean',
-
-    // Date/Time types
-    date: 'Date',
-    timestamp: 'Date',
-    timestamptz: 'Date',
-    time: 'string',
-    timetz: 'string',
-    interval: 'string',
-
-    // JSON types
-    json: 'Json',
-    jsonb: 'Json',
-
-    // UUID
-    uuid: 'string',
-
-    // Network address types
-    inet: 'string',
-    cidr: 'string',
-    macaddr: 'string',
-    macaddr8: 'string',
-
-    // Geometric types
-    point: 'string',
-    line: 'string',
-    lseg: 'string',
-    box: 'string',
-    path: 'string',
-    polygon: 'string',
-    circle: 'string',
-
-    // Binary data
-    bytea: 'Buffer',
-
-    // Arrays
-    '_text': 'string[]',
-    '_varchar': 'string[]',
-    '_int2': 'number[]',
-    '_int4': 'number[]',
-    '_int8': 'number[]',
-    '_float4': 'number[]',
-    '_float8': 'number[]',
-    '_bool': 'boolean[]',
-    '_date': 'Date[]',
-    '_timestamp': 'Date[]',
-    '_timestamptz': 'Date[]',
-    '_json': 'unknown[]',
-    '_jsonb': 'unknown[]',
-    '_uuid': 'string[]',
-
-    // Other common types
-    bit: 'string',
-    varbit: 'string',
-    tsvector: 'string',
-    tsquery: 'string',
-    xml: 'string',
-    enum: 'string',
-    oid: 'number'
 };

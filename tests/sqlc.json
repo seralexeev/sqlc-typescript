@@ -1,5 +1,9 @@
 {
   "include": "queries/**/*.ts",
   "schema": "schema.sql",
-  "output": "sqlc.ts"
+  "output": "sqlc.ts",
+  "columns": {
+    "customer.customer_id": "UUID"
+  },
+  "imports": ["import { UUID } from '../types'"]
 }
