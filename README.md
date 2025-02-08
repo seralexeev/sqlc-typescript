@@ -2,6 +2,16 @@
 
 A super lightweight TypeScript SQL query builder that respects your laziness and love for raw SQL. Zero runtime dependencies, just types. This is just a super thin wrapper around sqlc and a file generator - all the real magic is in sqlc. It just makes it more convenient to use in TypeScript projects.
 
+## Demo
+
+<img width="1122" alt="image" src="https://github.com/user-attachments/assets/0556e61c-72ab-465e-86b7-3013e1b82c6f" />
+
+<details>
+  <summary>Video</summary>
+  
+  https://github.com/user-attachments/assets/dba59632-6c4c-48fe-80f0-da1514e2da1a
+</details>
+
 ## Why? 🤔
 
 If you're like me - you just want to write SQL, ship features and not deal with heavy abstractions or spend hours reading documentation (even if it's really good). That's exactly why this exists.
