@@ -1,9 +1,15 @@
 {
   "name": "sqlc-typescript",
-  "version": "0.0.5",
+  "version": "0.0.11",
   "type": "module",
   "main": "dist/cli.js",
-  "bin": "bin/cli",
+  "bin": {
+    "sqlc-typescript": "bin/cli"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
   "scripts": {
     "start": "node --no-warnings src/cli.ts",
     "example": "node --no-warnings src/cli.ts generate -c tests/sqlc.json",

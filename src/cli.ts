@@ -40,6 +40,7 @@ program
             ignoreInitial: false,
             persistent: true,
             ignorePermissionErrors: true,
+            ignored: [path.resolve(root, config.tmp_dir), path.resolve(root, config.output)],
         });
 
         const debounced_generate = debounce(async () => {
