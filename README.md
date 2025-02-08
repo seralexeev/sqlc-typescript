@@ -1,5 +1,29 @@
 # sqlc-typescript
 
+<!-- NPM Badges -->
+
+[![npm version](https://img.shields.io/npm/v/sqlc-typescript.svg)](https://www.npmjs.com/package/sqlc-typescript)
+[![npm downloads](https://img.shields.io/npm/dm/sqlc-typescript.svg)](https://www.npmjs.com/package/sqlc-typescript)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![npm types](https://img.shields.io/npm/types/sqlc-typescript.svg)](https://www.npmjs.com/package/sqlc-typescript)
+[![Dependencies](https://img.shields.io/librariesio/release/npm/sqlc-typescript)](https://libraries.io/npm/sqlc-typescript)
+
+<!-- GitHub Badges -->
+
+[![GitHub stars](https://img.shields.io/github/stars/seralexeev/sqlc-typescript.svg)](https://github.com/seralexeev/sqlc-typescript)
+[![GitHub issues](https://img.shields.io/github/issues/seralexeev/sqlc-typescript.svg)](https://github.com/seralexeev/sqlc-typescript/issues)
+[![GitHub last commit](https://img.shields.io/github/last-commit/seralexeev/sqlc-typescript.svg)](https://github.com/seralexeev/sqlc-typescript/commits)
+[![Contributors](https://img.shields.io/github/contributors/seralexeev/sqlc-typescript)](https://github.com/seralexeev/sqlc-typescript/graphs/contributors)
+
+<!-- Package Info -->
+
+[![Bundle Size](https://img.shields.io/bundlephobia/min/sqlc-typescript)](https://bundlephobia.com/package/sqlc-typescript)
+[![Bundle Size (gzip)](https://img.shields.io/bundlephobia/minzip/sqlc-typescript)](https://bundlephobia.com/package/sqlc-typescript)
+
+<!-- CI/CD Badges -->
+
+[![CI](https://github.com/seralexeev/sqlc-typescript/actions/workflows/manual-release.yml/badge.svg)](https://github.com/seralexeev/sqlc-typescript/actions/workflows/manual-release.yml)
+
 A super lightweight TypeScript types generator that respects your laziness and love for raw SQL.
 
 Zero runtime dependencies, just types. This is just a super thin wrapper around [sqlc](https://sqlc.dev/) and a file generator - all the real magic is in sqlc. It just makes it more convenient to use in TypeScript projects.

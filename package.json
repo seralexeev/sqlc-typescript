@@ -1,5 +1,6 @@
 {
   "name": "sqlc-typescript",
+  "description": "A super lightweight TypeScript types generator that respects your laziness and love for raw SQL",
   "version": "0.0.15",
   "type": "module",
   "main": "dist/cli.js",
@@ -9,10 +10,23 @@
     "bin"
   ],
   "scripts": {
+    "build": "tsc",
     "start": "node --no-warnings src/cli.ts",
-    "example": "node --no-warnings src/cli.ts generate -c tests/sqlc.json",
-    "build": "tsc"
+    "test": "node --no-warnings src/cli.ts generate -c tests/sqlc.json"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seralexeev/sqlc-typescript"
+  },
+  "bugs": {
+    "url": "https://github.com/seralexeev/sqlc-typescript/issues"
+  },
+  "keywords": [
+    "postgres",
+    "typescript",
+    "sql",
+    "sqlc"
+  ],
   "packageManager": "yarn@4.6.0",
   "dependencies": {
     "chokidar": "^4.0.3",
@@ -22,5 +36,11 @@
   "devDependencies": {
     "@types/node": "^22.13.1",
     "typescript": "^5.7.3"
+  },
+  "peerDependencies": {
+    "node": ">=23.7.0"
+  },
+  "engines": {
+    "node": ">=23.7.0"
   }
 }
