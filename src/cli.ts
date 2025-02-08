@@ -54,10 +54,7 @@ program
             }
         }, 1000);
 
-        watcher.on('all', () => {
-            console.log('🔵 Files changed');
-            return debounced_generate();
-        });
+        watcher.on('all', debounced_generate);
 
         console.log(`🟣 Watching directory "${watch_root}"`);
     });
