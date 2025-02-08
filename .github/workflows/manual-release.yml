@@ -22,38 +22,38 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Git
+      - name: 🛠️ Setup Git
         run: |
           git config --global user.name 'GitHub Actions Bot'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
-      - name: Setup Node.js
+      - name: 🛠️ Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18.x'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Install dependencies
+      - name: 🛠️ Install dependencies
         run: yarn
 
-      - name: Build
+      - name: 🛠️ Build
         run: yarn build
 
-      - name: Create new version
+      - name: 🟢 Create new version
         run: |
           npm version ${{ inputs.release_type }}
 
-      - name: Push changes
+      - name: 🌍 Push changes
         run: |
           git push
           git push --tags
 
-      - name: Publish to NPM
+      - name: 🌍 Publish to NPM
         run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Create GitHub Release
+      - name: 📝 Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v$(node -p "require('./package.json').version")
