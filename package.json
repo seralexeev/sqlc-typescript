@@ -36,11 +36,5 @@
   "devDependencies": {
     "@types/node": "^22.13.1",
     "typescript": "^5.7.3"
-  },
-  "peerDependencies": {
-    "node": ">=23.7.0"
-  },
-  "engines": {
-    "node": ">=23.7.0"
   }
 }
