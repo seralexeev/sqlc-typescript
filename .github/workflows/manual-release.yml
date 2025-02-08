@@ -53,7 +53,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Get version
+      - name: 👀 Get version
         id: version
         run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
 
