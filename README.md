@@ -15,11 +15,6 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/seralexeev/sqlc-typescript.svg)](https://github.com/seralexeev/sqlc-typescript/commits)
 [![Contributors](https://img.shields.io/github/contributors/seralexeev/sqlc-typescript)](https://github.com/seralexeev/sqlc-typescript/graphs/contributors)
 
-<!-- Package Info -->
-
-[![Bundle Size](https://img.shields.io/bundlephobia/min/sqlc-typescript)](https://bundlephobia.com/package/sqlc-typescript)
-[![Bundle Size (gzip)](https://img.shields.io/bundlephobia/minzip/sqlc-typescript)](https://bundlephobia.com/package/sqlc-typescript)
-
 <!-- CI/CD Badges -->
 
 [![CI](https://github.com/seralexeev/sqlc-typescript/actions/workflows/manual-release.yml/badge.svg)](https://github.com/seralexeev/sqlc-typescript/actions/workflows/manual-release.yml)
