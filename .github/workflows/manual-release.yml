@@ -62,9 +62,5 @@ jobs:
         with:
           tag_name: v${{ env.VERSION }}
           generate_release_notes: true
-          files: |
-            dist/*
-            LICENSE
-            README.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
