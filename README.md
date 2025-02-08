@@ -1,10 +1,12 @@
-# sqlc-typescript 🚀
+# sqlc-typescript
 
-A super lightweight TypeScript SQL query builder that respects your laziness and love for raw SQL. Zero runtime dependencies, just types. This is just a super thin wrapper around sqlc and a file generator - all the real magic is in sqlc. It just makes it more convenient to use in TypeScript projects.
+A super lightweight TypeScript types generator that respects your laziness and love for raw SQL.
 
-## Demo
+Zero runtime dependencies, just types. This is just a super thin wrapper around [sqlc](https://sqlc.dev/) and a file generator - all the real magic is in sqlc. It just makes it more convenient to use in TypeScript projects.
 
-<img width="1122" alt="image" src="https://github.com/user-attachments/assets/0556e61c-72ab-465e-86b7-3013e1b82c6f" />
+## Demo 🚀
+
+<img alt="image" src="https://github.com/user-attachments/assets/0556e61c-72ab-465e-86b7-3013e1b82c6f" />
 
 <details>
   <summary>Video</summary>
@@ -123,9 +125,9 @@ Unfortunately, we can't use tagged template literals like `` sql`SELECT * FROM u
 
 ### Comparison with Other Tools 🔍
 
-- **pgTyped**: Requires separate SQL files and function imports. It uses PostgreSQL wire protocol for type inference which requires a database connection and can't handle nullability well.
-- **Prisma TypedSQL**: SQL files are separate and require function imports and it's Prisma 🫠.
-- **SafeQL**: Great tool but requires ESLint and database connection for type inference.
+- [pgTyped](https://github.com/adelsz/pgtyped): Requires separate SQL files and function imports. It uses PostgreSQL wire protocol for type inference which requires a database connection and can't handle nullability well.
+- [Prisma TypedSQL](https://www.prisma.io/docs/orm/prisma-client/using-raw-sql/typedsql): SQL files are separate and require function imports and it's Prisma 🫠.
+- [SafeQL](https://github.com/ts-safeql/safeql): Great tool but requires ESLint and database connection for type inference.
 
 The key difference: We use sqlc's SQL parser instead of PostgreSQL wire protocol for type inference, which means:
 
