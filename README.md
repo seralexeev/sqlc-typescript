@@ -1,4 +1,4 @@
-# sqlc-typescript
+# <img width="34" alt="typescript" src="https://github.com/user-attachments/assets/a1239abb-ae71-480f-9842-98293587ae60"> sqlc-typescript
 
 <!-- NPM Badges -->
 
