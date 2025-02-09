@@ -2,6 +2,7 @@
   "include": "src/**/*.ts",
   "output": "src/sqlc.ts",
   "schema": "schema.sql",
+  "clear_tmp": true,
   "columns": {
     "customer.customer_id": "UUID"
   },

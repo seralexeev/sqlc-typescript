@@ -20,7 +20,7 @@ export const generate_types = ({
             line += `{ `;
             line += query.columns
                 .map((column) => {
-                    return `"${column.name}": ${column_to_tstype({ column, config, schema_types })}`;
+                    return `"${column.name}": ${column_to_tstype({ column, config, schema_types, branded: true })}`;
                 })
                 .join(';');
             line += ` },`;
@@ -32,7 +32,7 @@ export const generate_types = ({
             line += `{`;
             line += query.params
                 .map((param) => {
-                    return `"${param.column.name}": ${column_to_tstype({ column: param.column, config, schema_types })}`;
+                    return `"${param.column.name}": ${column_to_tstype({ column: param.column, config, schema_types, branded: false })}`;
                 })
                 .join(';');
             line += `}`;
@@ -99,12 +99,14 @@ const column_to_tstype = ({
     column,
     schema_types,
     config,
+    branded,
 }: {
     column: Column;
     schema_types: Set<string>;
     config: Pick<Config, 'types' | 'columns'>;
+    branded: boolean;
 }) => {
-    let type = get_column_type({ config, column, schema_types });
+    let type = get_column_type({ config, column, schema_types, branded });
 
     if (column.is_array) {
         type = `Array<${type}>`;
@@ -121,10 +123,12 @@ const get_column_type = ({
     column,
     schema_types,
     config,
+    branded,
 }: {
     column: Column;
     schema_types: Set<string>;
     config: Pick<Config, 'types' | 'columns'>;
+    branded: boolean;
 }) => {
     const source = [
         ...[column.table?.schema, ...(column.table?.name.split('.') ?? [])].filter(
@@ -133,20 +137,29 @@ const get_column_type = ({
         column.original_name,
     ].join('.');
 
-    if (config.columns[source]) {
-        return config.columns[source];
-    }
-
     const parts = [column.type.schema, column.type.name.split('.')]
         .flat()
         .filter((x) => x != null && x !== '' && x !== 'public' && x !== 'pg_catalog');
 
-    const type = parts.join('.');
-    if (schema_types.has(type)) {
-        return [column.type.schema, column.type.name].join('.');
+    const db_type = parts.join('.');
+
+    const final_type = (() => {
+        if (config.columns[source]) {
+            return config.columns[source];
+        }
+
+        if (schema_types.has(db_type)) {
+            return [column.type.schema, column.type.name].join('.');
+        }
+
+        return DEFAULT_TYPES[db_type] || config.types[db_type] || DEFAULT_TYPES[db_type] || 'unknown';
+    })();
+
+    if (branded) {
+        return `SqlType<${final_type}, '${db_type}', '${source}'>`;
     }
 
-    return config.types[type] || DEFAULT_TYPES[type] || 'unknown';
+    return final_type;
 };
 
 export const render_template = ({
@@ -190,6 +203,13 @@ type ExecFn<TRow, TParam> = [TParam] extends [never]
           client: QueryClient,
           params: TParam & Record<string, unknown>,
       ) => Promise<Array<ApplyOverride<TSpec, TRow>>>;
+
+class BrandedSqlType<TDbType, TDbSource> {
+    protected __dbtype: TDbType;
+    protected __dbsource: TDbSource;
+}
+    
+type SqlType<T, TDbType, TDbSource> = T & BrandedSqlType<TDbType, TDbSource>;
 
 class Query<TRow, TParam> {
     public query;

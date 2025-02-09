@@ -4,7 +4,7 @@ const client = {
     query: (query: string, params: unknown[]) => Promise.resolve({ rows: [] }),
 };
 
-sqlc(/*sql*/ `
+const ss = await sqlc(/*sql*/ `
     SELECT
         first_name,
         last_name,

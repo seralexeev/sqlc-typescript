@@ -98,19 +98,43 @@ yarn add sqlc-typescript
 pnpm add sqlc-typescript
 ```
 
-## 📝 Configuration
+## 📝 Configuration Options
 
-Create a `sqlc.json` in your project root:
+The following configuration options can be set in your `sqlc.json` file:
+
+| Option      | Type                        | Default         | Description                                                                                                                                                                                                 |
+| ----------- | --------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `schema`    | `string`                    | `"schema.sql"`  | Path to your SQL schema file, typically generated using `pg_dump --schema-only`. This file should contain your database schema definitions including tables, views, and types.                              |
+| `include`   | `string`                    | `"src/**/*.ts"` | Glob pattern for TypeScript files to scan for SQL queries. The generator will look for queries marked with `/*sql*/` in these files.                                                                        |
+| `output`    | `string`                    | `"src/sqlc.ts"` | Location where the generated TypeScript types file will be written. This file will contain all the type definitions and the `sqlc` function.                                                                |
+| `tmp_dir`   | `string`                    | `".sqlc"`       | Directory used for temporary files during type generation. This directory will contain intermediate files used by sqlc.                                                                                     |
+| `clear_tmp` | `boolean`                   | `true`          | Whether to remove the temporary directory after type generation is complete. Set to `false` if you need to inspect the intermediate files for debugging.                                                    |
+| `types`     | `{ [key: string]: string }` | `{}`            | Map of PostgreSQL types to TypeScript types. Use this to override the default type mappings for specific database types.                                                                                    |
+| `columns`   | `{ [key: string]: string }` | `{}`            | Map of specific column types to TypeScript types. This takes precedence over both default type mappings and `types` overrides. The key should be in the format `"table.column"` or `"schema.table.column"`. |
+| `imports`   | `string[]`                  | `[]`            | Array of import statements to include in the generated file. Use this when you need to import custom types used in your `types` or `columns` mappings.                                                      |
+
+### Example Configuration
 
 ```json
 {
-    "include": "src/**/*.ts",
-    "schema": "schema.sql",
-    "output": "src/sqlc.ts",
-    "columns": {
-        "customer.customer_id": "UUID"
+    "schema": "db/schema.sql",
+    "include": "src/**/*.{ts,tsx}",
+    "output": "src/generated/sqlc.ts",
+    "tmp_dir": ".sqlc-temp",
+    "clear_tmp": true,
+    "types": {
+        "timestamptz": "DateTime",
+        "json": "JSONValue"
     },
-    "imports": ["import { UUID } from '../types'"]
+    "columns": {
+        "users.id": "UUID",
+        "orders.status": "OrderStatus"
+    },
+    "imports": [
+        "import type { UUID } from '../types'",
+        "import type { OrderStatus } from '../db-types'",
+        "import type { JSONValue } from '../json-types'"
+    ]
 }
 ```
 

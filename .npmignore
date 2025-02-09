@@ -1,9 +1,0 @@
-.vscode
-.yarn
-.gitattributes
-.prettierrc
-.yarnrc.yml
-tsconfig.json
-yarn.lock
-src
-tests

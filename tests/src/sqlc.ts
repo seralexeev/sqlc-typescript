@@ -30,6 +30,13 @@ type ExecFn<TRow, TParam> = [TParam] extends [never]
           params: TParam & Record<string, unknown>,
       ) => Promise<Array<ApplyOverride<TSpec, TRow>>>;
 
+class BrandedSqlType<TDbType, TDbSource> {
+    protected __dbtype: TDbType;
+    protected __dbsource: TDbSource;
+}
+
+type SqlType<T, TDbType, TDbSource> = T & BrandedSqlType<TDbType, TDbSource>;
+
 class Query<TRow, TParam> {
     public query;
     public params;
@@ -68,14 +75,14 @@ const queries = {
         customer_id = @customer_id
 `]: new Query<
         {
-            first_name: string;
-            last_name: string;
-            email: string | null;
-            address_id: number;
-            store_id: number;
-            activebool: boolean;
-            create_date: Date;
-            last_update: Date | null;
+            first_name: SqlType<string, 'text', 'customer.first_name'>;
+            last_name: SqlType<string, 'text', 'customer.last_name'>;
+            email: SqlType<string, 'text', 'customer.email'> | null;
+            address_id: SqlType<number, 'int4', 'customer.address_id'>;
+            store_id: SqlType<number, 'int4', 'customer.store_id'>;
+            activebool: SqlType<boolean, 'bool', 'customer.activebool'>;
+            create_date: SqlType<Date, 'date', 'customer.create_date'>;
+            last_update: SqlType<Date, 'timestamptz', 'customer.last_update'> | null;
         },
         { customer_id: UUID }
     >(
@@ -106,7 +113,13 @@ const queries = {
     WHERE
         title LIKE '%' || @film_title || '%';
 `]: new Query<
-        { film_id: number; title: string; description: string | null; release_year: unknown | null; rental_rate: number },
+        {
+            film_id: SqlType<number, 'int4', 'film.film_id'>;
+            title: SqlType<string, 'text', 'film.title'>;
+            description: SqlType<string, 'text', 'film.description'> | null;
+            release_year: SqlType<unknown, 'year', 'film.release_year'> | null;
+            rental_rate: SqlType<number, 'numeric', 'film.rental_rate'>;
+        },
         { film_title: string | null }
     >(
         `SELECT
@@ -137,7 +150,15 @@ const queries = {
         r.customer_id = @customer_id
     ORDER BY
         r.rental_date DESC;
-`]: new Query<{ rental_id: number; rental_date: Date; film_title: string; return_date: Date | null }, { customer_id: number }>(
+`]: new Query<
+        {
+            rental_id: SqlType<number, 'int4', 'rental.rental_id'>;
+            rental_date: SqlType<Date, 'timestamptz', 'rental.rental_date'>;
+            film_title: SqlType<string, 'text', 'film.title'>;
+            return_date: SqlType<Date, 'timestamptz', 'rental.return_date'> | null;
+        },
+        { customer_id: number }
+    >(
         `SELECT
         r.rental_id,
         r.rental_date,
@@ -165,7 +186,10 @@ const queries = {
         customer_id
     HAVING
         customer_id = @customer_id
-`]: new Query<{ customer_id: number; rental_count: number }, { customer_id: number }>(
+`]: new Query<
+        { customer_id: SqlType<number, 'int4', 'rental.customer_id'>; rental_count: SqlType<number, 'bigint', ''> },
+        { customer_id: number }
+    >(
         `SELECT
         customer_id,
         COUNT(*) AS rental_count
@@ -205,7 +229,13 @@ const queries = {
     ORDER BY
         total_revenue DESC
     LIMIT 5
-`]: new Query<{ category_name: string; total_revenue: number }, never>(
+`]: new Query<
+        {
+            category_name: SqlType<string, 'text', 'categoryrevenue.category_name'>;
+            total_revenue: SqlType<number, 'bigint', 'categoryrevenue.total_revenue'>;
+        },
+        never
+    >(
         `WITH CategoryRevenue AS (
         SELECT
             c.name AS category_name,
