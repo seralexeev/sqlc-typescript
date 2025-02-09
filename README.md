@@ -21,7 +21,7 @@
 
 A super lightweight TypeScript types generator that respects your laziness and love for raw SQL.
 
-Zero runtime dependencies, just types. This is just a super thin wrapper around [sqlc](https://sqlc.dev/) and a file generator - all the real magic is in sqlc. It just makes it more convenient to use in TypeScript projects.
+Zero runtime dependencies, just types. This is just a super thin wrapper around [sqlc](https://sqlc.dev/) and a file generator - all the real magic is in **sqlc**. It just makes it more convenient to use in TypeScript projects.
 
 ## 🏃 TLDR
 
