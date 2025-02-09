@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Version of SQLC to download
-VERSION="1.27.0"
+VERSION="1.28.0"
 
 # Create directory if it doesn't exist
 mkdir -p bin/sqlc
