@@ -103,7 +103,7 @@ export const exec_sqlc = async ({ tmp_dir, root }: Pick<Config, 'tmp_dir' | 'roo
             throw new Error(`Unsupported platform or architecture ${process.platform} ${process.arch}`);
         }
 
-        const binary_name = `sqlc_1.27.0_${platform}_${arch}${process.platform === 'win32' ? '.exe' : ''}`;
+        const binary_name = `sqlc_${platform}_${arch}${process.platform === 'win32' ? '.exe' : ''}`;
 
         await execFileAsync(path.join(import.meta.dirname, '..', 'bin', 'sqlc', binary_name), ['generate', '-f', 'sqlc.json'], {
             cwd: path.join(root, tmp_dir),
