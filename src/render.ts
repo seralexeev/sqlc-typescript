@@ -156,7 +156,8 @@ const get_column_type = ({
     })();
 
     if (branded) {
-        return `SqlType<${final_type}, '${db_type}', '${source}'>`;
+        const final_source = source !== '' ? `'${source}'` : 'never';
+        return `SqlType<${final_type}, '${db_type}', ${final_source}>`;
     }
 
     return final_type;
@@ -204,12 +205,17 @@ type ExecFn<TRow, TParam> = [TParam] extends [never]
           params: TParam & Record<string, unknown>,
       ) => Promise<Array<ApplyOverride<TSpec, TRow>>>;
 
-class BrandedSqlType<TDbType, TDbSource> {
-    protected __dbtype: TDbType;
-    protected __dbsource: TDbSource;
-}
-    
-type SqlType<T, TDbType, TDbSource> = T & BrandedSqlType<TDbType, TDbSource>;
+type SqlType<T, TDbType, TDbSource> = T & {
+    /**
+     * @deprecated this property does not exist in runtime, it is used for type-checking, do not use it in runtime!
+     */
+    __dbtype: TDbType;
+
+    /**
+     * @deprecated this property does not exist in runtime, it is used for type-checking, do not use it in runtime!
+     */
+    __dbsource: TDbSource;
+};
 
 class Query<TRow, TParam> {
     public query;

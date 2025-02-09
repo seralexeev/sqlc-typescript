@@ -30,12 +30,17 @@ type ExecFn<TRow, TParam> = [TParam] extends [never]
           params: TParam & Record<string, unknown>,
       ) => Promise<Array<ApplyOverride<TSpec, TRow>>>;
 
-class BrandedSqlType<TDbType, TDbSource> {
-    protected __dbtype: TDbType;
-    protected __dbsource: TDbSource;
-}
+type SqlType<T, TDbType, TDbSource> = T & {
+    /**
+     * @deprecated this property does not exist in runtime, it is used for type-checking, do not use it in runtime!
+     */
+    __dbtype: TDbType;
 
-type SqlType<T, TDbType, TDbSource> = T & BrandedSqlType<TDbType, TDbSource>;
+    /**
+     * @deprecated this property does not exist in runtime, it is used for type-checking, do not use it in runtime!
+     */
+    __dbsource: TDbSource;
+};
 
 class Query<TRow, TParam> {
     public query;
@@ -187,7 +192,7 @@ const queries = {
     HAVING
         customer_id = @customer_id
 `]: new Query<
-        { customer_id: SqlType<number, 'int4', 'rental.customer_id'>; rental_count: SqlType<number, 'bigint', ''> },
+        { customer_id: SqlType<number, 'int4', 'rental.customer_id'>; rental_count: SqlType<number, 'bigint', never> },
         { customer_id: number }
     >(
         `SELECT
