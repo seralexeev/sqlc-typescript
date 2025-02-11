@@ -228,7 +228,7 @@ sqlc(/*sql*/ `
 
 - PostgreSQL only (for now)
 - Queries must be statically analyzable (no dynamic SQL) which is good and bad at the same time
-- All queries must use the `/*sql*/` tag until TypeScript supports generic template literals
+- All queries must be called using `sqlc` function until TypeScript supports generic template literals
 
 ## 🙏 Credits
 
