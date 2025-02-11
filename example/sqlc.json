@@ -2,9 +2,13 @@
   "include": "src/**/*.ts",
   "output": "src/sqlc.ts",
   "schema": "schema.sql",
+  "tmp_dir": ".sqlc",
   "clear_tmp": true,
+  "types": {
+    "timestamp": "Date"
+  },
   "columns": {
     "customer.customer_id": "UUID"
   },
-  "imports": ["import { UUID } from '../types'"]
+  "imports": ["import type { UUID } from './types.ts'"]
 }

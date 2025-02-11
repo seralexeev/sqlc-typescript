@@ -236,6 +236,9 @@ class Query<TRow, TParam> {
     }) as ExecFn<TRow, TParam>;
 }
 
+export type InferRow<T> = T extends Query<infer R, any> ? R : never;
+export type InferParam<T> = T extends Query<any, infer P> ? P : never;
+
 type Queries = typeof queries;
 
 const queries = {

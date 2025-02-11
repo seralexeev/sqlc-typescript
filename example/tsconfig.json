@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
-    "rootDir": "${configDir}/src",
-    "outDir": "${configDir}/dist",
+    "rootDir": "${configDir}",
     "lib": ["ESNext"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
@@ -25,7 +24,8 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "allowImportingTsExtensions": true,
-    "rewriteRelativeImportExtensions": true
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": true
   },
   "include": ["${configDir}/src"]
 }

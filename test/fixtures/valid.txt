@@ -1,0 +1,194 @@
+// Basic cases with SQL comment
+sqlc(/*sql*/ "SELECT * FROM users");
+sqlc(/*sql*/ 'SELECT * FROM users');
+sqlc(/*sql*/ `SELECT * FROM users`);
+
+// SQL comment with spaces
+sqlc(/* sql */ "SELECT * FROM users");
+sqlc(/*  sql  */ 'SELECT * FROM users');
+sqlc(/*   sql   */ `SELECT * FROM users`);
+
+// SQL comment with tabs
+sqlc(/*	sql	*/ "SELECT * FROM users");
+sqlc(/*		sql		*/ 'SELECT * FROM users');
+
+// SQL comment with newlines
+sqlc(/*
+sql
+*/ "SELECT * FROM users");
+
+sqlc(/*
+    sql
+*/ "SELECT * FROM users");
+
+// SQL comment with mixed whitespace
+sqlc(/* 
+    sql    
+    */ "SELECT * FROM users");
+
+// Without SQL comment
+sqlc("SELECT * FROM users");
+sqlc('SELECT * FROM users');
+sqlc(`SELECT * FROM users`);
+
+// Whitespace before function call
+sqlc("SELECT * FROM users");
+    sqlc("SELECT * FROM users");
+        sqlc("SELECT * FROM users");
+
+// Whitespace after sqlc
+sqlc ("SELECT * FROM users");
+sqlc  ("SELECT * FROM users");
+sqlc   ("SELECT * FROM users");
+
+// Whitespace between comment and string
+sqlc(/*sql*/ "SELECT * FROM users");
+sqlc(/*sql*/  "SELECT * FROM users");
+sqlc(/*sql*/   "SELECT * FROM users");
+
+// Whitespace in parentheses
+sqlc( /*sql*/ "SELECT * FROM users");
+sqlc(  /*sql*/ "SELECT * FROM users");
+sqlc(   /*sql*/ "SELECT * FROM users");
+
+// Mixed whitespace everywhere
+sqlc    (   /*   sql   */    "SELECT * FROM users"    )  ;
+
+// Multiple lines between components
+sqlc(
+
+    /*sql*/
+
+    "SELECT * FROM users"
+
+);
+
+// Newlines in different positions
+sqlc
+(
+    /*sql*/
+    "SELECT * FROM users"
+);
+
+sqlc(
+    /*sql*/
+    `
+    SELECT * FROM users
+    `
+);
+
+// Tabs and spaces mixed
+sqlc(	/*sql*/	"SELECT * FROM users");
+sqlc(  	/*sql*/	  "SELECT * FROM users");
+sqlc(	  /*sql*/  	"SELECT * FROM users");
+
+// Comments with unusual spacing
+sqlc(/*.  sql  .*/ "SELECT * FROM users");
+sqlc(/* .sql. */ "SELECT * FROM users");
+sqlc(/*.sql.*/ "SELECT * FROM users");
+
+// Multiple comments
+sqlc(/* comment */ /*sql*/ "SELECT * FROM users");
+sqlc(/*sql*/ /* comment */ "SELECT * FROM users");
+sqlc(/* comment */ /*sql*/ /* another */ "SELECT * FROM users");
+
+// Line comments with SQL comment
+sqlc(
+    // Line comment
+    /*sql*/
+    // Another line comment
+    "SELECT * FROM users"
+);
+
+// Multiline template literal with various whitespace
+sqlc(/*sql*/ `
+    SELECT * FROM users
+`);
+
+sqlc(/*sql*/ `
+SELECT * FROM users
+`);
+
+sqlc(/*sql*/ `
+        SELECT * FROM users
+`);
+
+sqlc(/*sql*/ `
+    SELECT 
+        * 
+    FROM 
+        users
+`);
+
+// Mixed indentation
+sqlc(/*sql*/ `
+    SELECT
+      *
+        FROM
+          users
+`);
+
+// No newlines at start/end
+sqlc(/*sql*/ `SELECT * FROM users`);
+sqlc(/*sql*/ `SELECT * 
+FROM users`);
+sqlc(/*sql*/ `
+SELECT * FROM users`);
+sqlc(/*sql*/ `SELECT * FROM users
+`);
+
+// Windows-style line endings (represented with \r\n)
+sqlc(/*sql*/ `\r\n    SELECT * FROM users\r\n`);
+
+// Combination of all whitespace types
+sqlc(
+    /* 
+        sql 
+    */ 
+        `
+            SELECT
+                id,
+                name,   
+                email		
+            FROM
+                users
+            WHERE
+                status = 'active'
+        `
+);
+
+// Complex indentation with comments
+sqlc(
+    // Start of query
+    /*
+        sql
+    */
+    // Before template literal
+    `
+        -- SQL comment
+        SELECT
+            -- Column list
+            id,
+            name,
+            -- More columns
+            email
+        FROM
+            -- Table name
+            users
+        -- End of query
+    `
+    // End of function call
+);
+
+// Minimal whitespace
+sqlc(/*sql*/`SELECT * FROM users`);
+sqlc(/*sql*/`SELECT*FROM users`);
+sqlc(/*sql*/`SELECT*FROM"users"`);
+
+// Maximum whitespace
+sqlc   (     /*    sql    */     `
+                SELECT
+                    *
+                FROM
+                    users
+            `     )     ;

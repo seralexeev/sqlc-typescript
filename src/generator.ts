@@ -6,12 +6,12 @@ import prettier from 'prettier';
 import util from 'util';
 import { generate_types, render_template } from './render.ts';
 import type { Config, SqlcResult } from './types.ts';
+import ts from 'typescript';
 
 const execFileAsync = util.promisify(execFile);
 
 export const generate = async (config: Config) => {
     const rm_tmp_dir = await prepare_tmp_dir(config);
-    const result_path = path.join(config.root, config.output);
 
     try {
         const queries = await scan_files(config);
@@ -27,7 +27,7 @@ export const generate = async (config: Config) => {
             await render_write({
                 queries_content,
                 schema_types_content,
-                result_path,
+                result_path: config.output,
                 config,
             });
 
@@ -35,7 +35,7 @@ export const generate = async (config: Config) => {
         } else {
             await render_write({
                 queries_content: '// Unable to generate queries: ' + exec_result.result,
-                result_path,
+                result_path: config.output,
                 config,
             });
 
@@ -83,7 +83,7 @@ export const render_write = async ({
     await fs.writeFile(result_path, formatted);
 };
 
-export const exec_sqlc = async ({ tmp_dir, root }: Pick<Config, 'tmp_dir' | 'root'>) => {
+export const exec_sqlc = async ({ tmp_dir }: Pick<Config, 'tmp_dir' | 'root'>) => {
     try {
         const PLATFORM_MAP: Partial<Record<NodeJS.Platform, string>> = {
             darwin: 'darwin',
@@ -106,11 +106,11 @@ export const exec_sqlc = async ({ tmp_dir, root }: Pick<Config, 'tmp_dir' | 'roo
         const binary_name = `sqlc_${platform}_${arch}${process.platform === 'win32' ? '.exe' : ''}`;
 
         await execFileAsync(path.join(import.meta.dirname, '..', 'bin', 'sqlc', binary_name), ['generate', '-f', 'sqlc.json'], {
-            cwd: path.join(root, tmp_dir),
+            cwd: tmp_dir,
         });
 
         const result: SqlcResult = await fs
-            .readFile(path.join(root, tmp_dir, 'generated', 'codegen_request.json'), 'utf8')
+            .readFile(path.join(tmp_dir, 'generated', 'codegen_request.json'), 'utf8')
             .then(JSON.parse);
 
         return { success: true, result } as const;
@@ -127,18 +127,16 @@ export const exec_sqlc = async ({ tmp_dir, root }: Pick<Config, 'tmp_dir' | 'roo
     }
 };
 
-export const prepare_tmp_dir = async ({ root, schema, tmp_dir }: Pick<Config, 'root' | 'schema' | 'tmp_dir'>) => {
-    const full_tmp_dir = path.join(root, tmp_dir);
-
-    const exists = await path_exists(full_tmp_dir);
+export const prepare_tmp_dir = async ({ schema, tmp_dir }: Pick<Config, 'root' | 'schema' | 'tmp_dir'>) => {
+    const exists = await path_exists(tmp_dir);
     if (exists) {
-        await fs.rm(full_tmp_dir, { recursive: true });
+        await fs.rm(tmp_dir, { recursive: true });
     }
 
-    await fs.mkdir(full_tmp_dir);
-    await fs.cp(path.resolve(root, schema), path.join(full_tmp_dir, 'schema.sql'));
+    await fs.mkdir(tmp_dir);
+    await fs.cp(schema, path.join(tmp_dir, 'schema.sql'));
     await fs.writeFile(
-        path.join(full_tmp_dir, 'sqlc.json'),
+        path.join(tmp_dir, 'sqlc.json'),
         JSON.stringify({
             version: '2',
             sql: [
@@ -152,21 +150,27 @@ export const prepare_tmp_dir = async ({ root, schema, tmp_dir }: Pick<Config, 'r
         }),
     );
 
-    return () => fs.rm(full_tmp_dir, { recursive: true });
+    return () => fs.rm(tmp_dir, { recursive: true });
 };
 
 export async function scan_files({ root, include, tmp_dir }: Pick<Config, 'root' | 'include' | 'tmp_dir'>) {
     const queries = new Map<string, string>();
-    const queries_file = await fs.open(path.join(root, tmp_dir, 'queries.sql'), 'w+');
+    const queries_file = await fs.open(path.join(tmp_dir, 'queries.sql'), 'w+');
 
     try {
         for await (const file of fs.glob(include, { cwd: root })) {
             const content = await fs.readFile(path.join(root, file), 'utf8');
 
-            for (const sql of extract_sql(content)) {
-                const { name, content } = render_query(sql);
-                await queries_file.appendFile(`${content}\n\n`);
-                queries.set(name, sql);
+            for (const query of extract_sql(content)) {
+                if (query.success) {
+                    const { name, content } = render_query(query.sql);
+                    if (!queries.has(name)) {
+                        await queries_file.appendFile(`${content}\n\n`);
+                        queries.set(name, query.sql);
+                    }
+                } else {
+                    console.error(query.error);
+                }
             }
         }
     } finally {
@@ -176,17 +180,81 @@ export async function scan_files({ root, include, tmp_dir }: Pick<Config, 'root'
     return queries;
 }
 
-function* extract_sql(content: string) {
-    const regex = /\/\*\s*sql\s*\*\/\s*`([^`]+)`/g;
+type SqlResult = { success: true; sql: string } | { success: false; error: string };
 
-    let match;
-    while ((match = regex.exec(content)) != null) {
-        const sql = match[1];
-        if (sql != null) {
-            yield sql;
+export const extract_sql = (content: string): SqlResult[] => {
+    const results: SqlResult[] = [];
+
+    try {
+        const sourceFile = ts.createSourceFile('temp.ts', content, ts.ScriptTarget.Latest, true);
+
+        function visit(node: ts.Node) {
+            if (ts.isCallExpression(node)) {
+                const identifier = node.expression;
+
+                // Check if it's a call to 'sqlc'
+                if (ts.isIdentifier(identifier) && identifier.text === 'sqlc') {
+                    const arg = node.arguments[0];
+
+                    if (!arg) {
+                        results.push({
+                            success: false,
+                            error: `Missing argument in sqlc call at position ${node.pos}`,
+                        });
+                        return;
+                    }
+
+                    // Check for template literal interpolation
+                    if (ts.isTemplateExpression(arg)) {
+                        results.push({
+                            success: false,
+                            error: `Template literal interpolation is not allowed at position ${arg.pos}`,
+                        });
+                        return;
+                    }
+
+                    // Check argument count
+                    if (node.arguments.length > 1) {
+                        results.push({
+                            success: false,
+                            error: `Multiple arguments are not allowed in sqlc call at position ${node.pos}`,
+                        });
+                        return;
+                    }
+
+                    let query: string | undefined;
+
+                    // Handle template literal
+                    if (ts.isNoSubstitutionTemplateLiteral(arg)) {
+                        query = arg.getText().slice(1, -1); // Remove backticks
+                        results.push({ success: true, sql: query });
+                    }
+                    // Handle string literal
+                    else if (ts.isStringLiteral(arg)) {
+                        query = arg.getText().slice(1, -1); // Remove quotes
+                        results.push({ success: true, sql: query });
+                    } else {
+                        results.push({
+                            success: false,
+                            error: `Invalid argument type in sqlc call at position ${arg.pos}. Expected string literal or template literal.`,
+                        });
+                    }
+                }
+            }
+
+            ts.forEachChild(node, visit);
         }
+
+        visit(sourceFile);
+    } catch (e) {
+        results.push({
+            success: false,
+            error: `Failed to parse TypeScript code: ${e instanceof Error ? e.message : String(e)}`,
+        });
     }
-}
+
+    return results;
+};
 
 function render_query(sql: string) {
     const hash = crypto.createHash('md5').update(sql.trim()).digest('hex').substring(0, 8);

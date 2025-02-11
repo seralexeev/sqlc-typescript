@@ -1,0 +1,164 @@
+// Wrong function name
+sqlQuery("SELECT * FROM users1");
+sql("SELECT * FROM users2");
+SQL("SELECT * FROM users3");
+SQLC("SELECT * FROM users4");
+sqLc("SELECT * FROM users5");
+
+// Template literal interpolation (should be rejected)
+const tableName = 'users';
+sqlc(`SELECT * FROM ${tableName}`);
+sqlc(`
+    SELECT * 
+    FROM ${tableName}
+    WHERE id = ${userId}
+`);
+
+// Variables in string concatenation
+sqlc("SELECT * FROM " + tableName);
+sqlc('SELECT * FROM ' + tableName);
+sqlc(`SELECT * FROM ` + tableName);
+
+// Multiple arguments
+sqlc("SELECT * FROM users6", "SELECT * FROM orders");
+sqlc(`SELECT * FROM users7`, `SELECT * FROM orders`);
+
+// Empty or invalid inputs
+sqlc();
+sqlc(null);
+sqlc(undefined);
+sqlc(123);
+sqlc(true);
+sqlc([]);
+sqlc({});
+
+// Non-string expressions
+sqlc(42);
+sqlc(true);
+sqlc(false);
+sqlc(null);
+sqlc(undefined);
+sqlc({});
+sqlc([]);
+sqlc(/regex/);
+sqlc(new Date());
+sqlc(Symbol('sql'));
+
+// Function expressions
+sqlc(() => "SELECT * FROM users8");
+sqlc(function() { return "SELECT * FROM users9"; });
+
+// Object methods
+sqlc(String("SELECT * FROM users10"));
+sqlc(new String("SELECT * FROM users11"));
+sqlc(Object("SELECT * FROM users12"));
+
+// Incomplete or malformed SQL comments
+sqlc(/*sql "SELECT * FROM users18");
+
+// Mixed quote types (invalid)
+sqlc('SELECT * FROM users23");
+sqlc("SELECT * FROM users24');
+sqlc(`SELECT * FROM users25");
+sqlc("SELECT * FROM users26`);
+
+// Escaped quotes (should handle but not break)
+sqlc("SELECT * FROM \"users\"");
+sqlc('SELECT * FROM \'users\'');
+sqlc(`SELECT * FROM \`users\``);
+
+// Invalid character escapes
+sqlc("\u0000SELECT * FROM users27");
+sqlc("\x00SELECT * FROM users28");
+
+// Unicode control characters
+sqlc("SELECT * FROM users\u0000");
+sqlc("SELECT * FROM users\u001F");
+
+// Non-printable characters
+sqlc("SELECT * \x00 FROM users29");
+sqlc("SELECT * \x1F FROM users30");
+
+// Comment-like strings inside query
+sqlc("SELECT '/*sql*/' FROM users");
+sqlc(`SELECT "--comment" FROM users`);
+
+// Malformed function calls
+sqlc(;
+sqlc);
+sqlc(/*sql*/);
+sqlc("SELECT * FROM users";
+sqlc("SELECT * FROM users"));
+
+// Malformed template literals
+sqlc(`SELECT * FROM users);
+sqlc(`SELECT * FROM users``;
+
+// Invalid identifiers
+const sqlc = () => {};
+var sqlc = function() {};
+let sqlc = "SELECT * FROM users";
+
+// Using with other template tags
+const tag = (strings, ...values) => strings.join('');
+sqlc(tag`SELECT * FROM users`);
+
+// With JSX-like syntax (invalid)
+sqlc(<sql>SELECT * FROM users</sql>);
+
+// Invalid Unicode sequences
+sqlc(`SELECT * FROM users 􏿿`);  // Invalid Unicode
+sqlc(`SELECT * FROM users �`);   // Replacement character
+
+// With BOM
+sqlc("\uFEFFSELECT * FROM users");
+
+// Attempting code execution
+sqlc(`${(() => { /* malicious code */ })()}`);
+sqlc(`${eval('/* malicious code */')}`);
+
+// With import expressions (invalid)
+sqlc(import('sql').then(m => m.query));
+
+// With await expressions (invalid)
+sqlc(await Promise.resolve("SELECT * FROM users"));
+
+// With generator expressions (invalid)
+sqlc(function* () { yield "SELECT * FROM users"; });
+
+// With async function expressions (invalid)
+sqlc(async () => "SELECT * FROM users");
+
+// With class expressions (invalid)
+sqlc(class { query() { return "SELECT * FROM users"; } });
+
+// With computed property names (invalid)
+sqlc({ ['sql']: "SELECT * FROM users" });
+
+// With tagged template expressions (invalid)
+const sql = (strings, ...values) => strings.join('');
+sqlc(sql`SELECT * FROM users`);
+
+// With spread operators (invalid)
+sqlc(...["SELECT * FROM users"]);
+
+// With destructuring (invalid)
+const [query] = ["SELECT * FROM users"];
+sqlc(query);
+
+// With optional chaining (invalid)
+sqlc(obj?.sql);
+
+// With nullish coalescing (invalid)
+sqlc(null ?? "SELECT * FROM users");
+
+// With logical operators (invalid)
+sqlc(true && "SELECT * FROM users");
+sqlc(false || "SELECT * FROM users");
+
+// With conditional expressions (invalid)
+sqlc(true ? "SELECT * FROM users" : "");
+
+// With type assertions (invalid in runtime)
+sqlc(<string>"SELECT * FROM users");
+sqlc("SELECT * FROM users" as string);

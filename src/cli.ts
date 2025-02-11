@@ -2,6 +2,7 @@ import { watch } from 'chokidar';
 import { Command } from 'commander';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import ora from 'ora';
 import { generate, path_exists } from './generator.ts';
 import type { Config } from './types.ts';
 
@@ -15,8 +16,15 @@ program
     .action(async (options) => {
         const config_path = path.resolve(options.config);
         const { config } = await load_config(config_path);
+        const spinner = ora('Generating types...').start();
 
-        await generate(config);
+        try {
+            const now = Date.now();
+            const result = await generate(config);
+            spinner.succeed(`Types generated (${result.queries} queries, ${Date.now() - now}ms)`);
+        } catch (error) {
+            spinner.fail(`Error: ${(error as any).message}`);
+        }
     });
 
 program
@@ -26,39 +34,41 @@ program
         const config_path = path.resolve(options.config);
         const { config, root } = await load_config(config_path);
         const watch_root = path.resolve(root, glob_root(config.include));
+        const watching_text = `Watching \n  - ${watch_root} (${config.include})\n  - ${config.schema}`;
 
-        const watcher = watch(watch_root, {
+        const watcher = watch([watch_root, config.schema], {
             ignoreInitial: false,
             persistent: true,
             ignorePermissionErrors: true,
-            ignored: [path.resolve(root, config.tmp_dir), path.resolve(root, config.output)],
+            ignored: [config.tmp_dir, config.output],
         });
 
+        const spinner = ora(watching_text).start();
+
         const debounced_generate = debounce(async () => {
-            console.log('🔵 Generating types');
+            spinner.start('Generating types...');
+
             try {
                 const now = Date.now();
                 const result = await generate(config);
-                console.log(`🟢 Types generated (${result.queries} queries, ${Date.now() - now}ms)`);
+                spinner.succeed(`Types generated (${result.queries} queries, ${Date.now() - now}ms)`);
             } catch (error) {
-                console.log('🔴 Types generation failed', error);
+                spinner.fail(`Error: ${(error as any).message}`);
+            } finally {
+                spinner.start(watching_text);
             }
         }, 1000);
 
         watcher.on('all', debounced_generate);
-
-        console.log(`🟣 Watching directory "${watch_root}"`);
     });
 
 const load_config = async (config_path: string) => {
     const root = path.dirname(config_path);
     const exists = await path_exists(config_path);
     const raw_config = exists ? await fs.readFile(config_path, 'utf8').then(JSON.parse) : {};
+    const config = validate_config(raw_config, root);
 
-    return {
-        config: validate_config(raw_config, root),
-        root,
-    };
+    return { config, root };
 };
 
 const validate_config = (config: unknown, root: string): Config => {
@@ -131,6 +141,10 @@ const validate_config = (config: unknown, root: string): Config => {
             }),
         );
     }
+
+    final_config.tmp_dir = path.resolve(root, final_config.tmp_dir);
+    final_config.output = path.resolve(root, final_config.output);
+    final_config.schema = path.resolve(root, final_config.schema);
 
     return final_config;
 };
