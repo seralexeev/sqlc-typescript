@@ -4,6 +4,8 @@
         "dbtype",
         "execrows",
         "sqlc",
-        "tstype"
+        "sqln",
+        "tstype",
+        "unflatten"
     ]
 }

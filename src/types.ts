@@ -1,3 +1,6 @@
+export type SqlQuery = { sql: string; type: 'flat' | 'nested' };
+export type SqlQueryParseResult = { success: true; query: SqlQuery } | { success: false; error: string };
+
 export type Config = {
     root: string;
     schema: string;

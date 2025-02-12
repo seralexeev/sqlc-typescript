@@ -2,11 +2,10 @@ import { execFile } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import prettier from 'prettier';
+import ts from 'typescript';
 import util from 'util';
 import { generate_types, render_template } from './render.ts';
-import type { Config, SqlcResult } from './types.ts';
-import ts from 'typescript';
+import type { Config, SqlcResult, SqlQuery, SqlQueryParseResult } from './types.ts';
 
 const execFileAsync = util.promisify(execFile);
 
@@ -18,14 +17,14 @@ export const generate = async (config: Config) => {
         const exec_result = await exec_sqlc(config);
 
         if (exec_result.success) {
-            const { queries_content, schema_types_content } = generate_types({
+            const { rendered_queries, schema_types_content } = generate_types({
                 sqlc_result: exec_result.result,
                 queries,
                 config,
             });
 
             await render_write({
-                queries_content,
+                rendered_queries,
                 schema_types_content,
                 result_path: config.output,
                 config,
@@ -34,7 +33,10 @@ export const generate = async (config: Config) => {
             return { queries: queries.size };
         } else {
             await render_write({
-                queries_content: '// Unable to generate queries: ' + exec_result.result,
+                rendered_queries: {
+                    flat: '// Unable to generate queries: ' + exec_result.result,
+                    nested: '// Unable to generate queries: ' + exec_result.result,
+                },
                 result_path: config.output,
                 config,
             });
@@ -49,38 +51,26 @@ export const generate = async (config: Config) => {
 };
 
 export const render_write = async ({
-    queries_content,
+    rendered_queries,
     schema_types_content,
     result_path,
     config,
 }: {
-    queries_content: string;
+    rendered_queries: {
+        flat: string;
+        nested: string;
+    };
     schema_types_content?: string;
     result_path: string;
     config: Pick<Config, 'imports'>;
 }) => {
     const file = render_template({
-        queries_content,
+        rendered_queries,
         schema_types_content,
         imports: config.imports,
     });
 
-    const formatted = await prettier.format(file, {
-        parser: 'typescript',
-        printWidth: 128,
-        tabWidth: 4,
-        useTabs: false,
-        semi: true,
-        singleQuote: true,
-        jsxSingleQuote: true,
-        trailingComma: 'all',
-        bracketSpacing: true,
-        bracketSameLine: true,
-        arrowParens: 'always',
-        endOfLine: 'lf',
-    });
-
-    await fs.writeFile(result_path, formatted);
+    await fs.writeFile(result_path, file);
 };
 
 export const exec_sqlc = async ({ tmp_dir }: Pick<Config, 'tmp_dir' | 'root'>) => {
@@ -154,22 +144,22 @@ export const prepare_tmp_dir = async ({ schema, tmp_dir }: Pick<Config, 'root' |
 };
 
 export async function scan_files({ root, include, tmp_dir }: Pick<Config, 'root' | 'include' | 'tmp_dir'>) {
-    const queries = new Map<string, string>();
+    const queries = new Map<string, SqlQuery>();
     const queries_file = await fs.open(path.join(tmp_dir, 'queries.sql'), 'w+');
 
     try {
         for await (const file of fs.glob(include, { cwd: root })) {
             const content = await fs.readFile(path.join(root, file), 'utf8');
 
-            for (const query of extract_sql(content)) {
-                if (query.success) {
-                    const { name, content } = render_query(query.sql);
+            for (const result of extract_sql(content)) {
+                if (result.success) {
+                    const { name, content } = render_query(result.query.sql);
                     if (!queries.has(name)) {
                         await queries_file.appendFile(`${content}\n\n`);
-                        queries.set(name, query.sql);
+                        queries.set(name, result.query);
                     }
                 } else {
-                    console.error(query.error);
+                    console.error(result.error);
                 }
             }
         }
@@ -180,10 +170,8 @@ export async function scan_files({ root, include, tmp_dir }: Pick<Config, 'root'
     return queries;
 }
 
-type SqlResult = { success: true; sql: string } | { success: false; error: string };
-
-export const extract_sql = (content: string): SqlResult[] => {
-    const results: SqlResult[] = [];
+export const extract_sql = (content: string): SqlQueryParseResult[] => {
+    const results: SqlQueryParseResult[] = [];
 
     try {
         const sourceFile = ts.createSourceFile('temp.ts', content, ts.ScriptTarget.Latest, true);
@@ -193,13 +181,13 @@ export const extract_sql = (content: string): SqlResult[] => {
                 const identifier = node.expression;
 
                 // Check if it's a call to 'sqlc'
-                if (ts.isIdentifier(identifier) && identifier.text === 'sqlc') {
+                if (ts.isIdentifier(identifier) && (identifier.text === 'sqlc' || identifier.text === 'sqln')) {
                     const arg = node.arguments[0];
 
                     if (!arg) {
                         results.push({
                             success: false,
-                            error: `Missing argument in sqlc call at position ${node.pos}`,
+                            error: `Missing argument in sqln call at position ${node.pos}`,
                         });
                         return;
                     }
@@ -227,12 +215,24 @@ export const extract_sql = (content: string): SqlResult[] => {
                     // Handle template literal
                     if (ts.isNoSubstitutionTemplateLiteral(arg)) {
                         query = arg.getText().slice(1, -1); // Remove backticks
-                        results.push({ success: true, sql: query });
+                        results.push({
+                            success: true,
+                            query: {
+                                type: identifier.text === 'sqln' ? 'nested' : 'flat',
+                                sql: query,
+                            },
+                        });
                     }
                     // Handle string literal
                     else if (ts.isStringLiteral(arg)) {
                         query = arg.getText().slice(1, -1); // Remove quotes
-                        results.push({ success: true, sql: query });
+                        results.push({
+                            success: true,
+                            query: {
+                                type: identifier.text === 'sqln' ? 'nested' : 'flat',
+                                sql: query,
+                            },
+                        });
                     } else {
                         results.push({
                             success: false,

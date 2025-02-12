@@ -8,7 +8,7 @@ describe(extract_sql.name, () => {
         const content = await fs.readFile('test/fixtures/valid.txt', 'utf8');
         const queries = extract_sql(content);
 
-        const lines = queries.map((x) => (x.success ? x.sql : x.error));
+        const lines = queries.map((x) => (x.success ? x.query.sql : x.error));
         const result = lines.join('\n');
 
         // await fs.writeFile('test/fixtures/valid.sql', result);
@@ -21,7 +21,7 @@ describe(extract_sql.name, () => {
         const content = await fs.readFile('test/fixtures/invalid.txt', 'utf8');
         const queries = extract_sql(content);
 
-        const lines = queries.map((x) => (x.success ? x.sql : x.error));
+        const lines = queries.map((x) => (x.success ? x.query.sql : x.error));
         const result = lines.join('\n');
 
         // await fs.writeFile('test/fixtures/invalid.sql', result);
