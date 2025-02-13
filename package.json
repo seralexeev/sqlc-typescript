@@ -21,6 +21,7 @@
   "bugs": {
     "url": "https://github.com/seralexeev/sqlc-typescript/issues"
   },
+  "license": "MIT",
   "keywords": [
     "postgres",
     "typescript",
