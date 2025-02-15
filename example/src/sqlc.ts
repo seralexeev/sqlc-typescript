@@ -20,58 +20,49 @@ type QueryClient = {
 type Apply<T, K extends keyof T, TOverride> = K extends keyof TOverride ? TOverride[K] : T[K];
 
 type Queries = typeof queries;
-type NestedQueries = typeof nested_queries;
 
 const queries = {
     ["\n                SELECT\n                    customer_id,\n                    store_id\n                FROM customer\n            "]: {
         exec: async<TOverride extends Partial<{ "customer_id": unknown; "store_id": unknown }> = {}>(client: QueryClient) => {
             type Row = { "customer_id": UUID; "store_id": number };
-            const { rows } = await client.query("\n                SELECT\n                    customer_id,\n                    store_id\n                FROM customer");
+            const { rows } = await client.query("SELECT\n    customer_id,\n    store_id\nFROM customer");
             return rows as unknown as Array<{ "customer_id": Apply<Row, 'customer_id', TOverride>; "store_id": Apply<Row, 'store_id', TOverride> }>;
-        }
+        },
+        type: 'flat',
+    },
+    ["\n                SELECT\n                    c.customer_id AS id,\n                    c.first_name,\n                    c.last_name,\n                    s.manager_staff_id AS \"store.manager_staff_id\",\n                    a.address_id AS \"store.address.id\",\n                    a.address AS \"store.address.address\",\n                    a.address2 AS \"store.address.address2\"\n                FROM customer AS c\n                JOIN store AS s ON c.store_id = s.store_id\n                JOIN address AS a ON c.address_id = a.address_id\n                WHERE customer_id = @customer_id\n            "]: {
+        exec: async<TOverride extends Partial<{ "id": unknown; "first_name": unknown; "last_name": unknown; "store.manager_staff_id": unknown; "store.address.id": unknown; "store.address.address": unknown; "store.address.address2": unknown }> = {}>(client: QueryClient, params: { "customer_id": UUID }) => {
+            type Row = { "id": UUID; "first_name": string; "last_name": string; "store.manager_staff_id": number; "store.address.id": number; "store.address.address": string; "store.address.address2": string | null };
+            const { rows } = await client.query("SELECT\n    c.customer_id AS id,\n    c.first_name,\n    c.last_name,\n    s.manager_staff_id AS \"store.manager_staff_id\",\n    a.address_id AS \"store.address.id\",\n    a.address AS \"store.address.address\",\n    a.address2 AS \"store.address.address2\"\nFROM customer AS c\nJOIN store AS s ON c.store_id = s.store_id\nJOIN address AS a ON c.address_id = a.address_id\nWHERE customer_id = $1", (["customer_id"] as const).map((param) => params[param]));
+            return unflatten_sql_results(rows as unknown as SqlRow[], {"id":{"type":"value","original_name":"id"},"first_name":{"type":"value","original_name":"first_name"},"last_name":{"type":"value","original_name":"last_name"},"store":{"type":"object","properties":{"manager_staff_id":{"type":"value","original_name":"store.manager_staff_id"},"address":{"type":"object","properties":{"id":{"type":"value","original_name":"store.address.id"},"address":{"type":"value","original_name":"store.address.address"},"address2":{"type":"value","original_name":"store.address.address2"}},"original_name":"store.address.id"}},"original_name":"store.manager_staff_id"}}) as unknown as Array<{ id: Apply<Row, 'id', TOverride>;first_name: Apply<Row, 'first_name', TOverride>;last_name: Apply<Row, 'last_name', TOverride>;store: { manager_staff_id: Apply<Row, 'store.manager_staff_id', TOverride>;address: { id: Apply<Row, 'store.address.id', TOverride>;address: Apply<Row, 'store.address.address', TOverride>;address2: Apply<Row, 'store.address.address2', TOverride> } } }>;
+        },
+        type: 'nested',
     },
     ["\n            WITH customer_spending AS (\n                SELECT \n                    c.customer_id,\n                    c.first_name,\n                    c.last_name,\n                    COUNT(r.rental_id) as total_rentals,\n                    SUM(p.amount) as total_spent,\n                    AVG(p.amount) as avg_payment\n                FROM customer c\n                JOIN rental r ON c.customer_id = r.customer_id\n                JOIN payment p ON r.rental_id = p.rental_id\n                GROUP BY c.customer_id, c.first_name, c.last_name\n            ),\n            customer_categories AS (\n                SELECT DISTINCT\n                    c.customer_id,\n                    STRING_AGG(cat.name, ', ') OVER (PARTITION BY c.customer_id) as favorite_categories\n                FROM customer c\n                JOIN rental r ON c.customer_id = r.customer_id\n                JOIN inventory i ON r.inventory_id = i.inventory_id\n                JOIN film_category fc ON i.film_id = fc.film_id\n                JOIN category cat ON fc.category_id = cat.category_id\n            )\n            SELECT \n                cs.*,\n                cc.favorite_categories,\n                RANK() OVER (ORDER BY cs.total_spent DESC) as spending_rank,\n                NTILE(4) OVER (ORDER BY cs.total_rentals) as rental_quartile,\n                ROUND(cs.total_spent / SUM(cs.total_spent) OVER () * 100, 2) as percentage_of_total_revenue\n            FROM customer_spending cs\n            JOIN customer_categories cc ON cs.customer_id = cc.customer_id\n            WHERE cs.total_rentals > 5\n            ORDER BY spending_rank\n        "]: {
         exec: async<TOverride extends Partial<{ "customer_id": unknown; "first_name": unknown; "last_name": unknown; "total_rentals": unknown; "total_spent": unknown; "avg_payment": unknown; "favorite_categories": unknown; "spending_rank": unknown; "rental_quartile": unknown; "percentage_of_total_revenue": unknown }> = {}>(client: QueryClient) => {
             type Row = { "customer_id": number; "first_name": string; "last_name": string; "total_rentals": number; "total_spent": number; "avg_payment": unknown; "favorite_categories": Buffer; "spending_rank": number; "rental_quartile": number; "percentage_of_total_revenue": number };
-            const { rows } = await client.query("\n            WITH customer_spending AS (\n                SELECT \n                    c.customer_id,\n                    c.first_name,\n                    c.last_name,\n                    COUNT(r.rental_id) as total_rentals,\n                    SUM(p.amount) as total_spent,\n                    AVG(p.amount) as avg_payment\n                FROM customer c\n                JOIN rental r ON c.customer_id = r.customer_id\n                JOIN payment p ON r.rental_id = p.rental_id\n                GROUP BY c.customer_id, c.first_name, c.last_name\n            ),\n            customer_categories AS (\n                SELECT DISTINCT\n                    c.customer_id,\n                    STRING_AGG(cat.name, ', ') OVER (PARTITION BY c.customer_id) as favorite_categories\n                FROM customer c\n                JOIN rental r ON c.customer_id = r.customer_id\n                JOIN inventory i ON r.inventory_id = i.inventory_id\n                JOIN film_category fc ON i.film_id = fc.film_id\n                JOIN category cat ON fc.category_id = cat.category_id\n            )\n            SELECT \n                cs.customer_id, cs.first_name, cs.last_name, cs.total_rentals, cs.total_spent, cs.avg_payment,\n                cc.favorite_categories,\n                RANK() OVER (ORDER BY cs.total_spent DESC) as spending_rank,\n                NTILE(4) OVER (ORDER BY cs.total_rentals) as rental_quartile,\n                ROUND(cs.total_spent / SUM(cs.total_spent) OVER () * 100, 2) as percentage_of_total_revenue\n            FROM customer_spending cs\n            JOIN customer_categories cc ON cs.customer_id = cc.customer_id\n            WHERE cs.total_rentals > 5\n            ORDER BY spending_rank");
+            const { rows } = await client.query("WITH customer_spending AS (\n    SELECT \n        c.customer_id,\n        c.first_name,\n        c.last_name,\n        COUNT(r.rental_id) as total_rentals,\n        SUM(p.amount) as total_spent,\n        AVG(p.amount) as avg_payment\n    FROM customer c\n    JOIN rental r ON c.customer_id = r.customer_id\n    JOIN payment p ON r.rental_id = p.rental_id\n    GROUP BY c.customer_id, c.first_name, c.last_name\n),\ncustomer_categories AS (\n    SELECT DISTINCT\n        c.customer_id,\n        STRING_AGG(cat.name, ', ') OVER (PARTITION BY c.customer_id) as favorite_categories\n    FROM customer c\n    JOIN rental r ON c.customer_id = r.customer_id\n    JOIN inventory i ON r.inventory_id = i.inventory_id\n    JOIN film_category fc ON i.film_id = fc.film_id\n    JOIN category cat ON fc.category_id = cat.category_id\n)\nSELECT \n    cs.customer_id, cs.first_name, cs.last_name, cs.total_rentals, cs.total_spent, cs.avg_payment,\n    cc.favorite_categories,\n    RANK() OVER (ORDER BY cs.total_spent DESC) as spending_rank,\n    NTILE(4) OVER (ORDER BY cs.total_rentals) as rental_quartile,\n    ROUND(cs.total_spent / SUM(cs.total_spent) OVER () * 100, 2) as percentage_of_total_revenue\nFROM customer_spending cs\nJOIN customer_categories cc ON cs.customer_id = cc.customer_id\nWHERE cs.total_rentals > 5\nORDER BY spending_rank");
             return rows as unknown as Array<{ "customer_id": Apply<Row, 'customer_id', TOverride>; "first_name": Apply<Row, 'first_name', TOverride>; "last_name": Apply<Row, 'last_name', TOverride>; "total_rentals": Apply<Row, 'total_rentals', TOverride>; "total_spent": Apply<Row, 'total_spent', TOverride>; "avg_payment": Apply<Row, 'avg_payment', TOverride>; "favorite_categories": Apply<Row, 'favorite_categories', TOverride>; "spending_rank": Apply<Row, 'spending_rank', TOverride>; "rental_quartile": Apply<Row, 'rental_quartile', TOverride>; "percentage_of_total_revenue": Apply<Row, 'percentage_of_total_revenue', TOverride> }>;
-        }
-    },
-};
-
-const nested_queries = {
-    ["\n                SELECT\n                    c.customer_id AS id,\n                    c.first_name,\n                    c.last_name,\n                    s.manager_staff_id AS \"store.manager_staff_id\",\n                    a.address_id AS \"store.address.id\",\n                    a.address AS \"store.address.address\",\n                    a.address2 AS \"store.address.address2\"\n                FROM customer AS c\n                JOIN store AS s ON c.store_id = s.store_id\n                JOIN address AS a ON c.address_id = a.address_id\n                WHERE customer_id = @customer_id\n            "]: {
-        exec: async<TOverride extends Partial<{ "id": unknown; "first_name": unknown; "last_name": unknown; "store.manager_staff_id": unknown; "store.address.id": unknown; "store.address.address": unknown; "store.address.address2": unknown }> = {}>(client: QueryClient, params: { "customer_id": UUID }) => {
-            type Row = { "id": UUID; "first_name": string; "last_name": string; "store.manager_staff_id": number; "store.address.id": number; "store.address.address": string; "store.address.address2": string | null };
-            const { rows } = await client.query("\n                SELECT\n                    c.customer_id AS id,\n                    c.first_name,\n                    c.last_name,\n                    s.manager_staff_id AS \"store.manager_staff_id\",\n                    a.address_id AS \"store.address.id\",\n                    a.address AS \"store.address.address\",\n                    a.address2 AS \"store.address.address2\"\n                FROM customer AS c\n                JOIN store AS s ON c.store_id = s.store_id\n                JOIN address AS a ON c.address_id = a.address_id\n                WHERE customer_id = $1", (["customer_id"] as const).map((param) => params[param]));
-            return unflatten_sql_results(rows as unknown as SqlRow[], {"id":{"type":"value","original_name":"id"},"first_name":{"type":"value","original_name":"first_name"},"last_name":{"type":"value","original_name":"last_name"},"store":{"type":"object","properties":{"manager_staff_id":{"type":"value","original_name":"store.manager_staff_id"},"address":{"type":"object","properties":{"id":{"type":"value","original_name":"store.address.id"},"address":{"type":"value","original_name":"store.address.address"},"address2":{"type":"value","original_name":"store.address.address2"}},"original_name":"store.address.id"}},"original_name":"store.manager_staff_id"}}) as unknown as Array<{ id: Apply<Row, 'id', TOverride>;first_name: Apply<Row, 'first_name', TOverride>;last_name: Apply<Row, 'last_name', TOverride>;store: { manager_staff_id: Apply<Row, 'store.manager_staff_id', TOverride>;address: { id: Apply<Row, 'store.address.id', TOverride>;address: Apply<Row, 'store.address.address', TOverride>;address2: Apply<Row, 'store.address.address2', TOverride> } } }>;
-        }
+        },
+        type: 'flat',
     },
 };
 
 export type mpaa_rating = 'G' | 'PG' | 'PG-13' | 'R' | 'NC-17';
 
 
-type SchemaType = 'value' | 'object' | 'array';
-
-interface SchemaNode {
-    type: SchemaType;
-    properties?: SchemaProperties;
+type SchemaNode = {
+    type: 'value' | 'object' | 'array';
+    properties?: Record<string, SchemaNode>;
     original_name?: string;
-}
-
-interface SchemaProperties {
-    [key: string]: SchemaNode;
-}
-
-export interface NestedSchema {
-    [key: string]: SchemaNode;
-}
+};
 
 type SqlRow = {
     [key: string]: unknown;
     '[]': number;
 };
+
+type NestedSchema = Record<string, SchemaNode>;
 
 const unflatten_row = (row: SqlRow, schema: NestedSchema): Record<string, unknown> => {
     // Recursive helper function to build nested objects
@@ -185,4 +176,4 @@ const unflatten_sql_results = (rows: SqlRow[], schema: NestedSchema): Identifiab
 };
 
 export const sqlc = <T extends keyof Queries>(query: T) => queries[query];
-export const sqln = <T extends keyof NestedQueries>(query: T) => nested_queries[query];
+export const sqln = <T extends keyof { [K in keyof Queries]: Queries[K]['type'] extends 'nested' ? K : never; }>(query: T) => queries[query];

@@ -46,6 +46,7 @@ program
         const spinner = ora(watching_text).start();
 
         const debounced_generate = debounce(async () => {
+            process.stdout.write('\x1Bc');
             spinner.start('Generating types...');
 
             try {

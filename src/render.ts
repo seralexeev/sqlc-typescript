@@ -1,4 +1,4 @@
-import type { Column, Config, SqlcResult, SqlQuery } from './types.ts';
+import type { Column, Config, SqlcQuery, SqlcResult, SqlQuery } from './types.ts';
 import { extract_nested_schema, type NestedSchema } from './unflatten.ts';
 
 export const generate_types = ({
@@ -11,86 +11,108 @@ export const generate_types = ({
     config: Pick<Config, 'types' | 'columns'>;
 }) => {
     const { schema_types, schema_types_content } = get_schema_types(sqlc_result);
-    const lines = {
-        flat: [] as string[],
-        nested: [] as string[],
-    };
+    const lines: string[] = [];
 
     for (const query of sqlc_result.queries) {
         const original = queries.get(query.name);
         if (original == null) {
-            throw new Error(`Query "${query.name}" not found in the original queries`);
+            throw new Error(`Query "\${query.name}" not found in the original queries`);
         }
 
-        let exec = `    [${JSON.stringify(original.sql)}]: {\n`;
-        const args = ['client: QueryClient'];
-        if (query.params.length > 0) {
-            const params = query.params.map((param) => {
-                return `"${param.column.name}": ${column_to_tstype({ column: param.column, config, schema_types })}`;
-            });
-
-            args.push(`params: { ${params.join('; ')} }`);
-        }
-
-        exec += `        exec: async`;
-
-        if (query.columns.length > 0) {
-            exec += `<TOverride extends Partial<{ ${query.columns.map((column) => `"${column.name}": unknown`).join('; ')} }> = {}>`;
-        }
-
-        exec += `(${args.join(', ')}) => {\n`;
-
-        let result;
-
-        const nested_schema = original.type === 'nested' ? extract_nested_schema(query.columns.map((c) => c.name)) : null;
-
-        if (query.columns.length > 0) {
-            exec += `            type Row = { ${query.columns.map((column) => `"${column.name}": ${column_to_tstype({ column, config, schema_types })}`).join('; ')} };\n`;
-
-            result = `{ `;
-
-            if (nested_schema == null) {
-                result += query.columns.map((column) => `"${column.name}": Apply<Row, '${column.name}', TOverride>`).join('; ');
-            } else {
-                result += render_nested_schema({
-                    nested_schema,
-                    columns: query.columns,
-                });
-            }
-
-            result += ` }`;
-
-            result = `Array<${result}>`;
-        } else {
-            result = 'never[]';
-        }
-
-        exec += `            const { rows } = await client.query(${JSON.stringify(query.text)}`;
-        if (query.params.length > 0) {
-            exec += `, ([${query.params.map((param) => `"${param.column.name}"`).join(', ')}] as const).map((param) => params[param])`;
-        }
-
-        exec += `);\n`;
-
-        if (nested_schema != null) {
-            exec += `            return unflatten_sql_results(rows as unknown as SqlRow[], ${JSON.stringify(nested_schema)}) as unknown as ${result};\n`;
-        } else {
-            exec += `            return rows as unknown as ${result};\n`;
-        }
-
-        exec += `        }\n`;
-        exec += `    },`;
-
-        lines[original.type].push(exec);
+        const exec = generate_query({ query, original, config, schema_types });
+        lines.push(exec);
     }
 
     return {
-        rendered_queries: {
-            flat: lines.flat.join('\n'),
-            nested: lines.nested.join('\n'),
-        },
+        rendered_queries: lines.join('\n'),
         schema_types_content,
     };
+};
+
+export const generate_query = ({
+    original,
+    query,
+    config,
+    schema_types,
+}: {
+    query: SqlcQuery;
+    original: SqlQuery;
+    config: Pick<Config, 'types' | 'columns'>;
+    schema_types: Set<string>;
+}) => {
+    if (original == null) {
+        throw new Error(`Query "${query.name}" not found in the original queries`);
+    }
+
+    let exec = `    [${JSON.stringify(original.sql)}]: {\n`;
+    const args = ['client: QueryClient'];
+    if (query.params.length > 0) {
+        const params = query.params.map((param) => {
+            return `"${param.column.name}": ${column_to_tstype({ column: param.column, config, schema_types })}`;
+        });
+
+        args.push(`params: { ${params.join('; ')} }`);
+    }
+
+    exec += `        exec: async`;
+
+    if (query.columns.length > 0) {
+        exec += `<TOverride extends Partial<{ ${query.columns
+            .map((column) => `"${column.name}": unknown`)
+            .join('; ')} }> = {}>`;
+    }
+
+    exec += `(${args.join(', ')}) => {\n`;
+
+    let result;
+
+    const nested_schema = original.type === 'nested' ? extract_nested_schema(query.columns.map((c) => c.name)) : null;
+
+    if (query.columns.length > 0) {
+        exec += `            type Row = { ${query.columns
+            .map((column) => `"${column.name}": ${column_to_tstype({ column, config, schema_types })}`)
+            .join('; ')} };\n`;
+
+        result = `{ `;
+
+        if (nested_schema == null) {
+            result += query.columns.map((column) => `"${column.name}": Apply<Row, '${column.name}', TOverride>`).join('; ');
+        } else {
+            result += render_nested_schema({
+                nested_schema,
+                columns: query.columns,
+            });
+        }
+
+        result += ` }`;
+
+        result = `Array<${result}>`;
+    } else {
+        result = 'never[]';
+    }
+
+    exec += `            const { rows } = await client.query(${JSON.stringify(query.text)}`;
+    if (query.params.length > 0) {
+        exec += `, ([${query.params
+            .map((param) => `"${param.column.name}"`)
+            .join(', ')}] as const).map((param) => params[param])`;
+    }
+
+    exec += `);\n`;
+
+    if (nested_schema != null) {
+        exec += `            return unflatten_sql_results(rows as unknown as SqlRow[], ${JSON.stringify(
+            nested_schema,
+        )}) as unknown as ${result};\n`;
+    } else {
+        exec += `            return rows as unknown as ${result};\n`;
+    }
+
+    exec += `        },\n`;
+    exec += `        type: '${original.type}',\n`;
+    exec += `    },`;
+
+    return exec;
 };
 
 const render_nested_schema = ({ nested_schema, columns }: { nested_schema: NestedSchema; columns: Column[] }) => {
@@ -225,10 +247,7 @@ export const render_template = ({
     header = '// This file was generated by sqlc-typescript\n// Do not modify this file by hand\n',
     imports,
 }: {
-    rendered_queries: {
-        flat: string;
-        nested: string;
-    };
+    rendered_queries: string;
     schema_types_content?: string;
     header?: string;
     imports: string[];
@@ -252,38 +271,25 @@ type QueryClient = {
 type Apply<T, K extends keyof T, TOverride> = K extends keyof TOverride ? TOverride[K] : T[K];
 
 type Queries = typeof queries;
-type NestedQueries = typeof nested_queries;
 
 const queries = {
-${rendered_queries.flat || '    // no queries found'}
-};
-
-const nested_queries = {
-${rendered_queries.nested || '    // no queries found'}
+${rendered_queries || '    // no queries found'}
 };
 
 ${schema_types_content || '// no types found'}
 
-type SchemaType = 'value' | 'object' | 'array';
-
-interface SchemaNode {
-    type: SchemaType;
-    properties?: SchemaProperties;
+type SchemaNode = {
+    type: 'value' | 'object' | 'array';
+    properties?: Record<string, SchemaNode>;
     original_name?: string;
-}
-
-interface SchemaProperties {
-    [key: string]: SchemaNode;
-}
-
-export interface NestedSchema {
-    [key: string]: SchemaNode;
-}
+};
 
 type SqlRow = {
     [key: string]: unknown;
     '[]': number;
 };
+
+type NestedSchema = Record<string, SchemaNode>;
 
 const unflatten_row = (row: SqlRow, schema: NestedSchema): Record<string, unknown> => {
     // Recursive helper function to build nested objects
@@ -397,7 +403,7 @@ const unflatten_sql_results = (rows: SqlRow[], schema: NestedSchema): Identifiab
 };
 
 export const sqlc = <T extends keyof Queries>(query: T) => queries[query];
-export const sqln = <T extends keyof NestedQueries>(query: T) => nested_queries[query];
+export const sqln = <T extends keyof { [K in keyof Queries]: Queries[K]['type'] extends 'nested' ? K : never; }>(query: T) => queries[query];
 `;
 
 export const DEFAULT_TYPES: Record<string, string> = {

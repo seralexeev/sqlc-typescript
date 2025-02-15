@@ -33,10 +33,7 @@ export const generate = async (config: Config) => {
             return { queries: queries.size };
         } else {
             await render_write({
-                rendered_queries: {
-                    flat: '// Unable to generate queries: ' + exec_result.result,
-                    nested: '// Unable to generate queries: ' + exec_result.result,
-                },
+                rendered_queries: '// Unable to generate queries: ' + exec_result.result,
                 result_path: config.output,
                 config,
             });
@@ -56,10 +53,7 @@ export const render_write = async ({
     result_path,
     config,
 }: {
-    rendered_queries: {
-        flat: string;
-        nested: string;
-    };
+    rendered_queries: string;
     schema_types_content?: string;
     result_path: string;
     config: Pick<Config, 'imports'>;
@@ -108,13 +102,68 @@ export const exec_sqlc = async ({ tmp_dir }: Pick<Config, 'tmp_dir' | 'root'>) =
         if (error instanceof Error && 'stderr' in error && typeof error.stderr === 'string') {
             const isQueryError = error.stderr.startsWith('# package \nqueries.sql:');
             if (isQueryError) {
-                const result = error.stderr.replace(/^# package \nqueries\.sql:\d+:\d+:\s*/, '').trim();
-                return { success: false, result } as const;
+                const result = parse_error(error.stderr);
+                if (result?.line != null) {
+                    const content = await fs.readFile(path.join(tmp_dir, 'queries.sql'), 'utf8').then((x) => x.split('\n'));
+                    let start_line = result?.line;
+                    while (start_line > 0 && !content[start_line]?.startsWith('-- name:')) {
+                        start_line--;
+                    }
+
+                    let end_line = result?.line;
+                    while (end_line < content.length && !content[end_line]?.startsWith('-- name:')) {
+                        end_line++;
+                    }
+
+                    const error_lines: string[] = [''];
+                    for (let i = start_line + 1; i < end_line - 1; i++) {
+                        const line = content[i];
+                        if (line != null) {
+                            error_lines.push(line);
+                        }
+
+                        if (i === result.line - 1) {
+                            error_lines.push(' '.repeat(result.position - 1) + '^');
+                            error_lines.push(' '.repeat(result.position - 1) + result.message);
+                            error_lines.push('');
+                        }
+                    }
+
+                    return {
+                        success: false,
+                        result: `Failed to parse query: ${result.message}\n${error_lines.join('\n')}`,
+                    } as const;
+                }
+
+                return { success: false, result: result.message } as const;
             }
         }
 
         throw error;
     }
+};
+
+const parse_error = (message: string) => {
+    const regex = /queries\.sql:(\d+):(\d+):\s*(.*)/;
+    const cleaned_message = message.replace('# package \n', '');
+    const match = cleaned_message.match(regex);
+
+    if (!match) {
+        return {
+            message: cleaned_message,
+        };
+    }
+
+    const [, line, position, error] = match;
+    if (line != null && position != null) {
+        return {
+            line: parseInt(line),
+            position: parseInt(position),
+            message: error ?? cleaned_message,
+        };
+    }
+
+    return { message: cleaned_message };
 };
 
 export const prepare_tmp_dir = async ({ schema, tmp_dir }: Pick<Config, 'root' | 'schema' | 'tmp_dir'>) => {
@@ -149,12 +198,14 @@ export async function scan_files({ root, include, tmp_dir }: Pick<Config, 'root'
 
     try {
         for await (const file of fs.glob(include, { cwd: root })) {
-            const content = await fs.readFile(path.join(root, file), 'utf8');
+            const file_path = path.join(root, file);
+            const content = await fs.readFile(file_path, 'utf8');
 
             for (const result of extract_sql(content)) {
                 if (result.success) {
-                    const { name, content } = render_query(result.query.sql);
+                    const { name, content } = render_query(result.query.normalized_sql);
                     if (!queries.has(name)) {
+                        await queries_file.appendFile(`-- ${file}\n`);
                         await queries_file.appendFile(`${content}\n\n`);
                         queries.set(name, result.query);
                     }
@@ -220,6 +271,7 @@ export const extract_sql = (content: string): SqlQueryParseResult[] => {
                             query: {
                                 type: identifier.text === 'sqln' ? 'nested' : 'flat',
                                 sql: query,
+                                normalized_sql: normalize_sql(query),
                             },
                         });
                     }
@@ -231,6 +283,7 @@ export const extract_sql = (content: string): SqlQueryParseResult[] => {
                             query: {
                                 type: identifier.text === 'sqln' ? 'nested' : 'flat',
                                 sql: query,
+                                normalized_sql: normalize_sql(query),
                             },
                         });
                     } else {
@@ -256,15 +309,31 @@ export const extract_sql = (content: string): SqlQueryParseResult[] => {
     return results;
 };
 
-function render_query(sql: string) {
-    const hash = crypto.createHash('md5').update(sql.trim()).digest('hex').substring(0, 8);
+const normalize_sql = (sql: string) => {
+    const lines = sql.split('\n');
+
+    while (lines[0]?.trim() === '') {
+        lines.shift();
+    }
+
+    while (lines[lines.length - 1]?.trim() === '') {
+        lines.pop();
+    }
+
+    const [first_line] = lines;
+    const padding_length = (first_line?.length ?? 0) - (first_line ?? '').trimStart().length;
+    return lines.map((line) => line.slice(padding_length)).join('\n');
+};
+
+const render_query = (normalized_sql: string) => {
+    const hash = crypto.createHash('md5').update(normalized_sql).digest('hex').substring(0, 8);
     const name = `query_${hash}`;
 
     const header = `-- name: ${name} :execrows`;
-    const content = header + '\n' + sql + ';\n';
+    const content = header + '\n' + normalized_sql + ';\n';
 
     return { name, content };
-}
+};
 
 export const path_exists = (full_path: string) => {
     return fs

@@ -1,4 +1,4 @@
-export type SqlQuery = { sql: string; type: 'flat' | 'nested' };
+export type SqlQuery = { sql: string; normalized_sql: string; type: 'flat' | 'nested' };
 export type SqlQueryParseResult = { success: true; query: SqlQuery } | { success: false; error: string };
 
 export type Config = {
@@ -16,7 +16,7 @@ export type Config = {
 export type SqlcResult = {
     settings: Settings;
     catalog: CatalogClass;
-    queries: Query[];
+    queries: SqlcQuery[];
     sqlc_version: string;
     plugin_options: string;
     global_options: string;
@@ -79,7 +79,7 @@ type ObjectType = {
     name: string;
 };
 
-type Query = {
+export type SqlcQuery = {
     text: string;
     name: string;
     cmd: string;
