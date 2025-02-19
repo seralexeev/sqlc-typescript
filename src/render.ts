@@ -101,9 +101,7 @@ export const generate_query = ({
     exec += `);\n`;
 
     if (nested_schema != null) {
-        exec += `            return unflatten_sql_results(rows as unknown as SqlRow[], ${JSON.stringify(
-            nested_schema,
-        )}) as unknown as ${result};\n`;
+        exec += `            return unflatten_sql_results(rows, ${JSON.stringify(nested_schema)}) as unknown as ${result};\n`;
     } else {
         exec += `            return rows as unknown as ${result};\n`;
     }
@@ -193,7 +191,7 @@ const column_to_tstype = ({
     const { type } = get_column_type({ config, column, schema_types });
     let final_type = type;
 
-    if (column.is_array) {
+    if (column.is_array || column.is_sqlc_slice) {
         final_type = `Array<${type}>`;
     }
 
@@ -284,14 +282,9 @@ type SchemaNode = {
     original_name?: string;
 };
 
-type SqlRow = {
-    [key: string]: unknown;
-    '[]': number;
-};
-
 type NestedSchema = Record<string, SchemaNode>;
 
-const unflatten_row = (row: SqlRow, schema: NestedSchema): Record<string, unknown> => {
+const unflatten_row = (row: any, schema: NestedSchema) => {
     // Recursive helper function to build nested objects
     const build_object = (schema: NestedSchema, prefix = ''): Record<string, unknown> => {
         const result: Record<string, unknown> = {};
@@ -372,7 +365,7 @@ const merge_objects = (target: IdentifiableObject, source: IdentifiableObject): 
     return target;
 };
 
-const unflatten_sql_results = (rows: SqlRow[], schema: NestedSchema): IdentifiableObject[] => {
+const unflatten_sql_results = (rows: any[], schema: NestedSchema): IdentifiableObject[] => {
     if (rows.length === 0) {
         return [];
     }
@@ -382,17 +375,17 @@ const unflatten_sql_results = (rows: SqlRow[], schema: NestedSchema): Identifiab
 
     // Step 3: Merge rows based on root array indicator
     const result: IdentifiableObject[] = [];
-    const root_index_map = new Map<number, number>();
+    const root_id_map = new Map<unknown, number>();
 
-    for (const row of unflattened_rows) {
-        const root_index = rows[0]?.['[]'];
-        if (typeof root_index !== 'number') {
-            throw new Error('Invalid root index');
+    for (const [index, row] of unflattened_rows.entries()) {
+        const root_key = rows[index]?.['[]'];
+        if (root_key == null) {
+            throw new Error('Invalid root key');
         }
 
-        const existing_index = root_index_map.get(root_index);
-        if (existing_index === undefined) {
-            root_index_map.set(root_index, result.length);
+        const existing_index = root_id_map.get(root_key);
+        if (existing_index == null) {
+            root_id_map.set(root_key, result.length);
             result.push(row);
         } else if (result[existing_index] != null) {
             merge_objects(result[existing_index], row);
