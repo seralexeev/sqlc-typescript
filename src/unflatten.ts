@@ -4,7 +4,7 @@ type SchemaNode = {
     original_name?: string;
 };
 
-type NestedSchema = Record<string, SchemaNode>;
+export type NestedSchema = Record<string, SchemaNode>;
 
 export const extract_nested_schema = (keys: string[]): NestedSchema => {
     const schema: NestedSchema = {};
