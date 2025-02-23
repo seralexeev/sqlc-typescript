@@ -1,7 +1,7 @@
 {
   "name": "sqlc-typescript",
   "description": "A super lightweight TypeScript types generator that respects your laziness and love for raw SQL",
-  "version": "0.0.22",
+  "version": "0.0.23",
   "type": "module",
   "main": "dist/cli.js",
   "bin": "bin/cli",
