@@ -203,7 +203,7 @@ export async function scan_files({ root, include, tmp_dir }: Pick<Config, 'root'
 
             for (const result of extract_sql(content)) {
                 if (result.success) {
-                    const { name, content } = render_query(result.query.normalized_sql);
+                    const { name, content } = render_query(result.query);
                     if (!queries.has(name)) {
                         await queries_file.appendFile(`-- ${file}\n`);
                         await queries_file.appendFile(`${content}\n\n`);
@@ -325,12 +325,12 @@ const normalize_sql = (sql: string) => {
     return lines.map((line) => line.slice(padding_length)).join('\n');
 };
 
-const render_query = (normalized_sql: string) => {
-    const hash = crypto.createHash('md5').update(normalized_sql).digest('hex').substring(0, 8);
+const render_query = (query: SqlQuery) => {
+    const hash = crypto.createHash('md5').update(query.sql).digest('hex').substring(0, 8);
     const name = `query_${hash}`;
 
     const header = `-- name: ${name} :execrows`;
-    const content = header + '\n' + normalized_sql + ';\n';
+    const content = header + '\n' + query.normalized_sql + ';\n';
 
     return { name, content };
 };

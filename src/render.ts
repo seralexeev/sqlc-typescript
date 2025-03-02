@@ -233,7 +233,7 @@ const get_column_type = ({
             return [column.type.schema, column.type.name].join('.');
         }
 
-        return DEFAULT_TYPES[db_type] || config.types[db_type] || DEFAULT_TYPES[db_type] || 'unknown';
+        return config.types[db_type] || DEFAULT_TYPES[db_type] || db_type;
     })();
 
     return { type: final_type, db_type, source };
